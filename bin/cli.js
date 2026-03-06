@@ -10,6 +10,7 @@
  *   agenticmarket list                 — show installed skills
  *   agenticmarket balance              — check your credits
  *   agenticmarket search <query>       — find skills on marketplace
+ *   agenticmarket logout               — log out of your account (clear API key)
  */
 
 import chalk from "chalk";
@@ -18,8 +19,9 @@ import { install } from "../src/commands/install.js";
 import { remove } from "../src/commands/remove.js";
 import { list } from "../src/commands/list.js";
 import { balance } from "../src/commands/balance.js";
+import { logout } from "../src/commands/logout.js";
 
-const VERSION = "1.0.0";
+const VERSION = "0.1.0";
 const args = process.argv.slice(2);
 const command = args[0];
 const argument = args[1];
@@ -95,6 +97,9 @@ switch (command) {
   case "-v":
     console.log(VERSION);
     break;
+  case "logout":
+    await logout();
+    break;  
 
   case "--help":
   case "-h":

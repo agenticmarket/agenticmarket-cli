@@ -16,6 +16,7 @@ import prompts from "prompts";
 import {
   getApiKey,
   getInstalledIDEs,
+  detectCurrentIDE,
   readMCPConfig,
   writeMCPConfig,
   buildMCPEntry,
@@ -97,15 +98,22 @@ export async function install(skillName) {
 
   } else {
     // Multiple IDEs — let user pick
+    const currentIDE = detectCurrentIDE();
     const { selected } = await prompts({
       type: "multiselect",
       name: "selected",
       message: "  Install to which IDEs?",
-      choices: installedIDEs.map((ide) => ({
-        title: `${ide.icon}  ${ide.name}`,
-        value: ide,
-        selected: true,
-      })),
+      choices: installedIDEs.map((ide) => {
+        // Pre-select only the IDE we're running inside
+        const isCurrent =
+          (currentIDE === "vscode" && ide.name === "VS Code") ||
+          (currentIDE === "cursor" && ide.name.startsWith("Cursor"));
+        return {
+          title: `${ide.icon}  ${ide.name}`,
+          value: ide,
+          selected: currentIDE ? isCurrent : true,
+        };
+      }),
       instructions: false,
       hint: "Space to toggle, Enter to confirm",
     });
