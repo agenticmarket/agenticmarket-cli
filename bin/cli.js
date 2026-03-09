@@ -20,6 +20,7 @@ import { remove } from "../src/commands/remove.js";
 import { list } from "../src/commands/list.js";
 import { balance } from "../src/commands/balance.js";
 import { logout } from "../src/commands/logout.js";
+import { whoami } from "../src/commands/whoami.js";
 
 const VERSION = "0.1.0";
 const args = process.argv.slice(2);
@@ -40,12 +41,14 @@ const help = () => {
   console.log(chalk.bold("  Usage:"));
   console.log("");
   console.log(`  ${chalk.cyan("agenticmarket auth")} ${chalk.yellow("<api-key>")}     Save your API key`);
-  console.log(`  ${chalk.cyan("agenticmarket install")} ${chalk.yellow("<skill>")}    Install a skill to your IDE`);
+  console.log(`  ${chalk.cyan("agenticmarket install")} ${chalk.yellow("<username>/<skill>")}    Install a skill to your IDE`);
   console.log(`  ${chalk.cyan("agenticmarket remove")} ${chalk.yellow("<skill>")}     Remove a skill`);
   console.log(`  ${chalk.cyan("agenticmarket list")}               Show installed skills`);
   console.log(`  ${chalk.cyan("agenticmarket balance")}            Check your credits`);
+  console.log(`  ${chalk.cyan("agenticmarket whoami")}             Display current user information`);
   console.log(`  ${chalk.cyan("agenticmarket logout")}             Log out of your account`);
   console.log("");
+  console.log(chalk.bold("  Tips: Power user can use amkt as shorthand for agenticmarket"));
   console.log(chalk.bold("  Examples:"));
   console.log("");
   console.log(`  ${chalk.dim("$")} agenticmarket auth am_live_xxxxxxxxxxxx`);
@@ -101,6 +104,9 @@ switch (command) {
   case "logout":
     await logout();
     break;  
+  case "whoami":
+    await whoami();
+    break;
 
   case "--help":
   case "-h":

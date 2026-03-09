@@ -10,7 +10,7 @@
  *    → If no conflict: uses plain skill name e.g. "summarizer"
  *    → If conflict with SAME author/url: tells user it's already installed, skips
  *    → If conflict with DIFFERENT skill: asks user to pick an alias, suggests options
- * 5. Edits their MCP config files automatically
+ * 5. Edits their MCP config files automatically (using the correct format per IDE)
  * 6. Done — no manual JSON editing needed
  */
 
@@ -28,13 +28,10 @@ import {
   API_BASE_URL,
 } from "../config.js";
 
-// Strip optional @ prefix — @alice and alice are the same
 function normalizeUsername(username) {
   return username.startsWith("@") ? username.slice(1) : username;
 }
 
-// Generate alias suggestions when there's a name conflict
-// e.g. "summarizer" taken → ["alice-summarizer", "summarizer-2", "summarizer-am"]
 function suggestAliases(skill, username) {
   return [
     `${username}-${skill}`,
@@ -69,7 +66,9 @@ export async function install(rawSkillName) {
   }
 
   // ── Step 2: Verify skill exists on marketplace ────
-  const spinner = ora(`  Looking up skill: ${chalk.cyan(username)}/${chalk.cyan(skill)}`).start();
+  const spinner = ora(
+    `  Looking up skill: ${chalk.cyan(username)}/${chalk.cyan(skill)}`,
+  ).start();
 
   let skillData;
   try {
@@ -78,8 +77,12 @@ export async function install(rawSkillName) {
     });
 
     if (res.status === 404) {
-      spinner.fail(chalk.red(`  Skill "${username}/${skill}" not found on marketplace.`));
-      console.log(chalk.dim("  Browse skills at: https://agenticmarket.dev/skills\n"));
+      spinner.fail(
+        chalk.red(`  Skill "${username}/${skill}" not found on marketplace.`),
+      );
+      console.log(
+        chalk.dim("  Browse skills at: https://agenticmarket.dev/skills\n"),
+      );
       process.exit(1);
     }
 
@@ -90,7 +93,7 @@ export async function install(rawSkillName) {
 
     skillData = await res.json();
     spinner.succeed(
-      `  Found: ${chalk.cyan(username)}/${chalk.cyan(skill)} — ${chalk.green("$" + skillData.price)} per call`
+      `  Found: ${chalk.cyan(username)}/${chalk.cyan(skill)} — ${chalk.green("$" + skillData.price)} per call`,
     );
   } catch {
     spinner.fail(chalk.red("  Network error. Are you connected?"));
@@ -105,7 +108,9 @@ export async function install(rawSkillName) {
     console.log(chalk.yellow("  ⚠ No supported IDEs detected."));
     console.log("");
     console.log("  Supported IDEs: Claude Desktop, Cursor, VS Code");
-    console.log("  Make sure at least one is installed and has been opened once.");
+    console.log(
+      "  Make sure at least one is installed and has been opened once.",
+    );
     console.log("");
     console.log(chalk.dim("  Manual setup — add this to your MCP config:"));
     printManualConfig(skill, username, apiKey);
@@ -158,35 +163,21 @@ export async function install(rawSkillName) {
   }
 
   // ── Step 5: Resolve the MCP key to use ───────────
-  //
-  // MCP clients use the mcpServers key as the server/tool name shown to the AI.
-  // "username/skill" is not a valid identifier in most MCP clients — slash causes
-  // parsing issues and the AI sees it as a confusing name.
-  //
-  // Strategy solving this problem:
-  //   - Preferred key: plain skill name e.g. "summarizer"
-  //   - If that key exists in ANY target IDE config, check if it's the same skill:
-  //       → Same author (url match or author field match): already installed, skip
-  //       → Different skill: name collision — ask user to pick an alias
-
-  // The URL we'll write — used to detect "same skill" collisions
   const expectedUrl = `${PROXY_BASE_URL}/mcp/${username}/${skill}`;
 
-  // Collect conflicts across all target IDEs
-  // (use the first one we find to decide — they should be in sync)
-  let resolvedKey = skill; // default: just the skill name
+  let resolvedKey = skill;
   let conflictFound = false;
   let isSameSkill = false;
 
   for (const ide of targetIDEs) {
-    const config = readMCPConfig(ide.path);
+    // ✅ Pass ide.format so we read the correct top-level key
+    const config = readMCPConfig(ide.path, ide.format);
     const existing = config.mcpServers?.[skill];
 
-    if (!existing) continue; // no conflict in this IDE
+    if (!existing) continue;
 
     conflictFound = true;
 
-    // Same skill if the URL matches OR the author field matches
     const existingUrl = existing.url ?? "";
     const existingAuthor = existing.author ?? "";
 
@@ -194,14 +185,15 @@ export async function install(rawSkillName) {
       isSameSkill = true;
     }
 
-    break; // one conflict is enough to prompt
+    break;
   }
 
   if (conflictFound && isSameSkill) {
-    // Already installed by the same author — nothing to do
     console.log("");
     console.log(
-      chalk.yellow(`  ⚠ ${chalk.bold(skill)} by ${chalk.cyan(username)} is already installed.`)
+      chalk.yellow(
+        `  ⚠ ${chalk.bold(skill)} by ${chalk.cyan(username)} is already installed.`,
+      ),
     );
     console.log(chalk.dim("  Restart your IDE if the skill isn't active yet."));
     console.log("");
@@ -209,12 +201,17 @@ export async function install(rawSkillName) {
   }
 
   if (conflictFound && !isSameSkill) {
-    // Name collision with a DIFFERENT skill — ask for an alias
     console.log("");
     console.log(
-      chalk.yellow(`  ⚠ A different skill is already installed under the name ${chalk.bold(`"${skill}"`)}.`)
+      chalk.yellow(
+        `  ⚠ A different skill is already installed under the name ${chalk.bold(`"${skill}"`)}.`,
+      ),
     );
-    console.log(chalk.dim("  You need a different name (alias) for this skill in your MCP config."));
+    console.log(
+      chalk.dim(
+        "  You need a different name (alias) for this skill in your MCP config.",
+      ),
+    );
     console.log("");
 
     const suggestions = suggestAliases(skill, username);
@@ -266,31 +263,30 @@ export async function install(rawSkillName) {
     const writeSpinner = ora(`  Adding to ${ide.name}...`).start();
 
     try {
-      const config = readMCPConfig(ide.path);
+      // ✅ Pass ide.format so we read AND write the correct schema
+      const config = readMCPConfig(ide.path, ide.format);
 
-      // Re-check resolved key in this specific IDE config (edge case:
-      // user could have different configs across IDEs)
       const existingEntry = config.mcpServers?.[resolvedKey];
       if (existingEntry) {
         const existingUrl = existingEntry.url ?? "";
         const existingAuthor = existingEntry.author ?? "";
         if (existingUrl === expectedUrl || existingAuthor === username) {
           writeSpinner.warn(
-            chalk.yellow(`  Already installed in ${ide.name} — skipping`)
+            chalk.yellow(`  Already installed in ${ide.name} — skipping`),
           );
           continue;
         }
       }
 
-      // Write with the resolved key (plain skill name or user-chosen alias)
-      // NOT "username/skill" — MCP clients need a clean identifier
       config.mcpServers[resolvedKey] = buildMCPEntry(skill, username, apiKey);
-      writeMCPConfig(ide.path, config);
+      writeMCPConfig(ide.path, config); // writeMCPConfig reads _format from config
 
       writeSpinner.succeed(chalk.green(`  Added to ${ide.name}`));
       successCount++;
     } catch (err) {
-      writeSpinner.fail(chalk.red(`  Failed to update ${ide.name}: ${err.message}`));
+      writeSpinner.fail(
+        chalk.red(`  Failed to update ${ide.name}: ${err.message}`),
+      );
     }
   }
 
@@ -299,12 +295,17 @@ export async function install(rawSkillName) {
     console.log("");
     console.log(chalk.bold.green("  ✓ Skill installed!"));
     console.log("");
-    console.log(`  ${chalk.dim("Skill:")}      ${chalk.cyan(username)}/${chalk.cyan(skill)}`);
-    // Show alias if different from the skill name
+    console.log(
+      `  ${chalk.dim("Skill:")}      ${chalk.cyan(username)}/${chalk.cyan(skill)}`,
+    );
     if (resolvedKey !== skill) {
-      console.log(`  ${chalk.dim("Installed as:")} ${chalk.cyan(resolvedKey)} ${chalk.dim("(alias)")}`);
+      console.log(
+        `  ${chalk.dim("Installed as:")} ${chalk.cyan(resolvedKey)} ${chalk.dim("(alias)")}`,
+      );
     }
-    console.log(`  ${chalk.dim("Added to:")}   ${successCount} IDE${successCount > 1 ? "s" : ""}`);
+    console.log(
+      `  ${chalk.dim("Added to:")}   ${successCount} IDE${successCount > 1 ? "s" : ""}`,
+    );
     console.log("");
     console.log(chalk.yellow("  ⚡ Restart your IDE to activate the skill."));
     console.log("");
@@ -317,17 +318,20 @@ export async function install(rawSkillName) {
 function printManualConfig(skill, username, apiKey) {
   const entry = buildMCPEntry(skill, username, apiKey);
   console.log("");
-  console.log(chalk.dim("  Add to your mcpServers config:"));
+  console.log(chalk.dim("  Claude Desktop / Cursor — add to mcpServers:"));
   console.log("");
-  console.log(chalk.dim("  {"));
-  console.log(chalk.dim('    "mcpServers": {'));
-  console.log(chalk.dim(`      "${skill}": {`));
-  console.log(chalk.dim(`        "url": "${entry.url}",`));
-  console.log(chalk.dim('        "headers": {'));
-  console.log(chalk.dim(`          "x-api-key": "${apiKey}"`));
-  console.log(chalk.dim("        }"));
-  console.log(chalk.dim("      }"));
-  console.log(chalk.dim("    }"));
-  console.log(chalk.dim("  }"));
+  console.log(
+    chalk.dim(
+      `    "${skill}": { "type": "http", "url": "${entry.url}", "headers": { "x-api-key": "..." } }`,
+    ),
+  );
+  console.log("");
+  console.log(chalk.dim("  VS Code (.vscode/mcp.json) — add to servers:"));
+  console.log("");
+  console.log(
+    chalk.dim(
+      `    "${skill}": { "type": "http", "url": "${entry.url}", "headers": { "x-api-key": "..." } }`,
+    ),
+  );
   console.log("");
 }

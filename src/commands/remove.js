@@ -17,19 +17,23 @@ export async function remove(skillName) {
 
   const apiKey = getApiKey();
   if (!apiKey) {
-    console.error(chalk.red("  ✗ Not authenticated. Run: agenticmarket auth <api-key>\n"));
+    console.error(
+      chalk.red("  ✗ Not authenticated. Run: agenticmarket auth <api-key>\n"),
+    );
     process.exit(1);
   }
 
   // Find IDEs that have this skill installed
   const installedIDEs = getInstalledIDEs();
   const IDEsWithSkill = installedIDEs.filter((ide) => {
-    const config = readMCPConfig(ide.path);
+    const config = readMCPConfig(ide.path, ide.format);
     return !!config.mcpServers?.[skillName];
   });
 
   if (IDEsWithSkill.length === 0) {
-    console.log(chalk.yellow(`  ⚠ Skill "${skillName}" is not installed in any IDE.\n`));
+    console.log(
+      chalk.yellow(`  ⚠ Skill "${skillName}" is not installed in any IDE.\n`),
+    );
     process.exit(0);
   }
 
@@ -48,12 +52,14 @@ export async function remove(skillName) {
   console.log("");
   for (const ide of IDEsWithSkill) {
     try {
-      const config = readMCPConfig(ide.path);
+      const config = readMCPConfig(ide.path, ide.format);
       delete config.mcpServers[skillName];
       writeMCPConfig(ide.path, config);
       console.log(chalk.green(`  ✓ Removed from ${ide.name}`));
     } catch (err) {
-      console.log(chalk.red(`  ✗ Failed to update ${ide.name}: ${err.message}`));
+      console.log(
+        chalk.red(`  ✗ Failed to update ${ide.name}: ${err.message}`),
+      );
     }
   }
 

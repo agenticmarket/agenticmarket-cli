@@ -19,12 +19,12 @@ export async function list() {
   let totalSkills = 0;
 
   for (const ide of installedIDEs) {
-    const config = readMCPConfig(ide.path);
+    const config = readMCPConfig(ide.path, ide.format);
     const servers = config.mcpServers ?? {};
 
     // Only show skills that go through our proxy
     const ourSkills = Object.entries(servers).filter(([, entry]) =>
-      entry?.url?.startsWith(PROXY_BASE_URL)
+      entry?.url?.startsWith(PROXY_BASE_URL),
     );
 
     if (ourSkills.length === 0) continue;
@@ -45,5 +45,9 @@ export async function list() {
     return;
   }
 
-  console.log(chalk.dim(`  ${totalSkills} skill${totalSkills > 1 ? "s" : ""} installed total.\n`));
+  console.log(
+    chalk.dim(
+      `  ${totalSkills} skill${totalSkills > 1 ? "s" : ""} installed total.\n`,
+    ),
+  );
 }

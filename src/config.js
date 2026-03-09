@@ -3,21 +3,26 @@
  *
  * Saves to: ~/.agenticmarket/config.json
  * Reads MCP configs from: Claude Desktop, Cursor, VS Code
+ *
+ * ⚠️  MCP config format differs per IDE:
+ *
+ *  Claude Desktop / Cursor  →  { "mcpServers": { "skill": { url, headers } } }
+ *  VS Code                  →  { "servers":    { "skill": { type, url, headers } } }
+ *
+ *  VS Code additionally requires  "type": "http"  (or "sse") on every entry.
+ *  Without it the agent silently ignores the server.
  */
 
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { install } from "./commands/install";
 
 // ── AgenticMarket config (stores API key) ─────────────
 
 const AM_CONFIG_DIR = path.join(os.homedir(), ".agenticmarket");
 const AM_CONFIG_FILE = path.join(AM_CONFIG_DIR, "config.json");
 
-// Your deployed worker URL
-export const PROXY_BASE_URL =
-  "https://agentic-market-proxy.shekharpachlore99.workers.dev";
+export const PROXY_BASE_URL = "http://127.0.0.1:8787";
 export const API_BASE_URL = PROXY_BASE_URL;
 
 export function saveConfig(data) {
@@ -51,11 +56,18 @@ const isMac = process.platform === "darwin";
 const home = os.homedir();
 const appData = process.env.APPDATA ?? path.join(home, "AppData", "Roaming");
 
-// All known MCP config file locations
+/**
+ * IDE config descriptors.
+ *
+ * `format` controls how we read/write the config file:
+ *   "claude"  →  top-level key is "mcpServers"
+ *   "vscode"  →  top-level key is "servers", entries need { type: "http" }
+ */
 export const IDE_CONFIGS = [
   {
     name: "Claude Desktop",
     icon: "🤖",
+    format: "claude",
     path: isWindows
       ? path.join(appData, "Claude", "claude_desktop_config.json")
       : isMac
@@ -71,51 +83,43 @@ export const IDE_CONFIGS = [
   {
     name: "Cursor (global)",
     icon: "⚡",
+    format: "claude", // Cursor uses the same schema as Claude Desktop
     path: path.join(home, ".cursor", "mcp.json"),
   },
   {
     name: "Cursor (project)",
     icon: "⚡",
+    format: "claude",
     path: path.join(process.cwd(), ".cursor", "mcp.json"),
   },
   {
     name: "VS Code",
     icon: "💙",
+    format: "vscode", // ← different schema!
     path: path.join(process.cwd(), ".vscode", "mcp.json"),
   },
 ];
 
-// Detect which IDE terminal we're currently running inside
+// ── IDE detection ─────────────────────────────────────
+
 export function detectCurrentIDE() {
   const askpass = (process.env.VSCODE_GIT_ASKPASS_NODE || "").toLowerCase();
   const ipcHook = (process.env.VSCODE_IPC_HOOK_CLI || "").toLowerCase();
 
-  // Cursor is a VS Code fork — both set TERM_PROGRAM=vscode,
-  // but Cursor's internal paths contain "cursor"
   if (askpass.includes("cursor") || ipcHook.includes("cursor")) return "cursor";
   if (process.env.TERM_PROGRAM === "vscode" || askpass.includes("code"))
     return "vscode";
   return null;
 }
 
-// Returns all IDE configs that actually exist on this machine
 export function getInstalledIDEs() {
   const currentIDE = detectCurrentIDE();
 
   return IDE_CONFIGS.filter((ide) => {
-    // Project-level configs: only show for the IDE we're actually running in
-    // (avoids installing to .cursor when running from VS Code and vice-versa)
-    if (ide.name === "VS Code") {
-      return currentIDE === "vscode";
-    }
-    if (ide.name === "Cursor (project)") {
-      return currentIDE === "cursor";
-    }
-    if (ide.name === "Cursor (global)") {
-      return currentIDE === "cursor";
-    }
+    if (ide.name === "VS Code") return currentIDE === "vscode";
+    if (ide.name === "Cursor (project)") return currentIDE === "cursor";
+    if (ide.name === "Cursor (global)") return currentIDE === "cursor";
 
-    // Global / app-level configs: detect if the config file or directory exists
     if (fs.existsSync(ide.path)) return true;
     const configDir = path.dirname(ide.path);
     if (fs.existsSync(configDir)) return true;
@@ -124,35 +128,91 @@ export function getInstalledIDEs() {
   });
 }
 
-// Read an MCP config file safely
-export function readMCPConfig(filePath) {
+// ── Format-aware config I/O ───────────────────────────
+
+/**
+ * Returns the top-level servers key name for a given IDE format.
+ *
+ *   "claude"  →  "mcpServers"
+ *   "vscode"  →  "servers"
+ */
+function serversKey(format) {
+  return format === "vscode" ? "servers" : "mcpServers";
+}
+
+/**
+ * Read an MCP config file, normalising it so callers always see:
+ *   { mcpServers: {}, _raw: <original parsed JSON>, _format: "claude"|"vscode" }
+ *
+ * We expose a unified `mcpServers` view internally so install.js doesn't
+ * need to know which key the file uses. When we write back we restore the
+ * correct key via writeMCPConfig.
+ */
+export function readMCPConfig(filePath, format = "claude") {
   try {
-    if (!fs.existsSync(filePath)) return { mcpServers: {} };
+    if (!fs.existsSync(filePath)) return { mcpServers: {}, _format: format };
+
     const content = fs.readFileSync(filePath, "utf-8");
     const parsed = JSON.parse(content);
-    if (!parsed.mcpServers) parsed.mcpServers = {};
-    return parsed;
+    const key = serversKey(format);
+
+    if (!parsed[key]) parsed[key] = {};
+
+    // Return a unified view — callers always read/write via `mcpServers`
+    return {
+      ...parsed,
+      mcpServers: parsed[key], // alias
+      _format: format,
+      _key: key,
+    };
   } catch {
-    return { mcpServers: {} };
+    return { mcpServers: {}, _format: format, _key: serversKey(format) };
   }
 }
 
-// Write an MCP config file safely
+/**
+ * Write an MCP config back to disk using the correct key for the IDE format.
+ * Strips our internal `_format` / `_key` / `mcpServers` alias before writing.
+ */
 export function writeMCPConfig(filePath, config) {
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  fs.writeFileSync(filePath, JSON.stringify(config, null, 2));
+
+  const format = config._format ?? "claude";
+  const key = config._key ?? serversKey(format);
+
+  // Build clean output — use the real key, drop our internal aliases
+  const { mcpServers, _format, _key, ...rest } = config;
+  const output = {
+    ...rest,
+    [key]: mcpServers, // write back under the correct key
+  };
+
+  fs.writeFileSync(filePath, JSON.stringify(output, null, 2));
 }
 
-// Build the MCP server entry for a skill
+// ── MCP entry builder ─────────────────────────────────
+
+/**
+ * Build the mcpServers entry object for a skill.
+ *
+ * VS Code requires `"type": "http"` — without it the Copilot agent won't
+ * discover the server even if the URL is correct.
+ *
+ * Claude Desktop / Cursor don't use `type` but tolerate its presence,
+ * so we include it universally for simplicity.
+ */
 export function buildMCPEntry(skill, username, apiKey) {
   return {
+    type: "http",          // Required by VS Code; harmless for others
     url: `${PROXY_BASE_URL}/mcp/${username}/${skill}`,
     headers: {
       "x-api-key": apiKey,
     },
+    // Metadata — not part of the MCP spec, used by agenticmarket to detect
+    // "already installed by same author" without re-fetching the marketplace
     author: username,
     skill: skill,
     installedAt: new Date().toISOString(),

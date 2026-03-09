@@ -42,9 +42,13 @@ export async function auth(apiKey) {
     }
 
     const data = await res.json();
-
+    const currentDate = new Date().toISOString();
     // Save the key locally
-    saveConfig({ apiKey });
+    saveConfig({
+      apiKey,
+      username: data.username,
+      lastAuthAt: currentDate,
+    });
 
     spinner.succeed(chalk.green("  Authenticated!"));
     console.log("");
