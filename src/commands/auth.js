@@ -49,6 +49,7 @@ export async function auth(apiKey) {
     spinner.succeed(chalk.green("  Authenticated!"));
     console.log("");
     console.log(`  ${chalk.dim("User:")}    ${data.user_id}`);
+    console.log(`  ${chalk.dim("Username:")} ${data.username}`);
     console.log(
       `  ${chalk.dim("Balance:")} ${chalk.bold.green("$" + data.balance)}`,
     );

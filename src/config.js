@@ -8,6 +8,7 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
+import { install } from "./commands/install";
 
 // ── AgenticMarket config (stores API key) ─────────────
 
@@ -146,11 +147,14 @@ export function writeMCPConfig(filePath, config) {
 }
 
 // Build the MCP server entry for a skill
-export function buildMCPEntry(skillName, apiKey) {
+export function buildMCPEntry(skill, username, apiKey) {
   return {
-    url: `${PROXY_BASE_URL}/mcp/${skillName}`,
+    url: `${PROXY_BASE_URL}/mcp/${username}/${skill}`,
     headers: {
       "x-api-key": apiKey,
     },
+    author: username,
+    skill: skill,
+    installedAt: new Date().toISOString(),
   };
 }

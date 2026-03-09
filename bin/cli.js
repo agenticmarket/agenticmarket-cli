@@ -40,10 +40,11 @@ const help = () => {
   console.log(chalk.bold("  Usage:"));
   console.log("");
   console.log(`  ${chalk.cyan("agenticmarket auth")} ${chalk.yellow("<api-key>")}     Save your API key`);
-  console.log(`  ${chalk.cyan("agenticmarket install")} ${chalk.yellow("<skill>")}   Install a skill to your IDE`);
-  console.log(`  ${chalk.cyan("agenticmarket remove")} ${chalk.yellow("<skill>")}    Remove a skill`);
+  console.log(`  ${chalk.cyan("agenticmarket install")} ${chalk.yellow("<skill>")}    Install a skill to your IDE`);
+  console.log(`  ${chalk.cyan("agenticmarket remove")} ${chalk.yellow("<skill>")}     Remove a skill`);
   console.log(`  ${chalk.cyan("agenticmarket list")}               Show installed skills`);
   console.log(`  ${chalk.cyan("agenticmarket balance")}            Check your credits`);
+  console.log(`  ${chalk.cyan("agenticmarket logout")}             Log out of your account`);
   console.log("");
   console.log(chalk.bold("  Examples:"));
   console.log("");
@@ -95,7 +96,7 @@ switch (command) {
 
   case "--version":
   case "-v":
-    console.log(VERSION);
+    console.log(`v${VERSION}`);
     break;
   case "logout":
     await logout();
