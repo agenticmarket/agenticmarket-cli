@@ -9,7 +9,7 @@
   },
   "files": [
     "bin",
-    "dist"
+    "src"
   ],
   "scripts": {
     "dev": "node bin/cli.js",
