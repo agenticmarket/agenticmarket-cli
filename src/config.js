@@ -22,7 +22,8 @@ import os from "os";
 const AM_CONFIG_DIR = path.join(os.homedir(), ".agenticmarket");
 const AM_CONFIG_FILE = path.join(AM_CONFIG_DIR, "config.json");
 
-export const PROXY_BASE_URL = "http://127.0.0.1:8787";
+export const PROXY_BASE_URL = "https://agentic-market-proxy.shekharpachlore99.workers.dev";
+// export const PROXY_BASE_URL = "http://127.0.0.1:8787";
 export const API_BASE_URL = PROXY_BASE_URL;
 
 export function saveConfig(data) {
@@ -204,17 +205,19 @@ export function writeMCPConfig(filePath, config) {
  * Claude Desktop / Cursor don't use `type` but tolerate its presence,
  * so we include it universally for simplicity.
  */
-export function buildMCPEntry(skill, username, apiKey) {
+export function buildMCPEntry(skill, username, apiKey , description , price_cents) {
   return {
     type: "http",          // Required by VS Code; harmless for others
     url: `${PROXY_BASE_URL}/mcp/${username}/${skill}`,
     headers: {
       "x-api-key": apiKey,
     },
+    description: description,
+    price_cents: price_cents,
     // Metadata — not part of the MCP spec, used by agenticmarket to detect
     // "already installed by same author" without re-fetching the marketplace
     author: username,
     skill: skill,
-    installedAt: new Date().toISOString(),
+    installedAt: new Date().toLocaleString(),
   };
 }
