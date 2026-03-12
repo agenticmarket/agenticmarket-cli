@@ -309,7 +309,7 @@ export async function install(rawSkillName) {
       }
 
       config.mcpServers[resolvedKey] = buildMCPEntry(
-        skill, username, apiKey,
+        skill, username,
         skillData.description, skillData.price_cents
       );
       writeMCPConfig(ide.path, config);
@@ -345,8 +345,8 @@ export async function install(rawSkillName) {
 }
 
 // ── Manual config fallback ────────────────────────────────────────────────────
-function printManualConfig(skill, username, apiKey) {
-  const entry = buildMCPEntry(skill, username, apiKey);
+function printManualConfig(skill, username) {
+  const entry = buildMCPEntry(skill, username);
   gap();
   console.log(chalk.dim(`  ${"─".repeat(48)}`));
   gap();

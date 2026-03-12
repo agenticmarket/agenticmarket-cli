@@ -75,12 +75,12 @@ export async function whoami() {
 
     if (cents === 0) {
       console.log(`  ${chalk.red("✗")}  ${chalk.red.bold("No credits — tool calls will be blocked")}`);
-      console.log(`  ${chalk.dim("Top up at")}  ${chalk.cyan.underline("agenticmarket.dev/topup")}`);
+      console.log(`  ${chalk.dim("Top up at")}  ${chalk.cyan.underline("https://agenticmarket.dev/topup")}`);
     } else if (cents < 20) {
       console.log(`  ${chalk.yellow("⚠")}  ${chalk.yellow("Low balance — consider topping up soon")}`);
-      console.log(`  ${chalk.dim("Top up at")}  ${chalk.cyan.underline("agenticmarket.dev/topup")}`);
+      console.log(`  ${chalk.dim("Top up at")}  ${chalk.cyan.underline("https://agenticmarket.dev/topup")}`);
     } else {
-      console.log(`  ${chalk.dim("Top up at")}  ${chalk.cyan.underline("agenticmarket.dev/topup")}`);
+      console.log(`  ${chalk.dim("Top up at")}  ${chalk.cyan.underline("https://agenticmarket.dev/topup")}`);
     }
 
     console.log("");

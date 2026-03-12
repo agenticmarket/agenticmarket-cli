@@ -22,8 +22,7 @@ import os from "os";
 const AM_CONFIG_DIR = path.join(os.homedir(), ".agenticmarket");
 const AM_CONFIG_FILE = path.join(AM_CONFIG_DIR, "config.json");
 
-export const PROXY_BASE_URL = "https://agentic-market-proxy.shekharpachlore99.workers.dev";
-// export const PROXY_BASE_URL = "http://127.0.0.1:8787";
+export const PROXY_BASE_URL = "https://api.agenticmarket.dev";
 export const API_BASE_URL = PROXY_BASE_URL;
 
 export function saveConfig(data) {
@@ -205,19 +204,18 @@ export function writeMCPConfig(filePath, config) {
  * Claude Desktop / Cursor don't use `type` but tolerate its presence,
  * so we include it universally for simplicity.
  */
-export function buildMCPEntry(skill, username, apiKey , description , price_cents) {
+export function buildMCPEntry(skill, username , description , price_cents) {
   return {
-    type: "http",          // Required by VS Code; harmless for others
-    url: `${PROXY_BASE_URL}/mcp/${username}/${skill}`,
-    headers: {
-      "x-api-key": apiKey,
-    },
-    description: description,
-    price_cents: price_cents,
-    // Metadata — not part of the MCP spec, used by agenticmarket to detect
-    // "already installed by same author" without re-fetching the marketplace
+    type: "stdio",
+    command: "npx",
+    args: ["agenticmarket", "proxy", `${username}/${skill}`],
+    // metadata only — not used by MCP protocol, just for your list command
+    description: description ?? "",
+    price_cents: price_cents ?? 0,
     author: username,
     skill: skill,
+    creatorUrl: `https://agenticmarket.dev/${username}`,
+    skillUrl: `https://agenticmarket.dev/${username}/${skill}`,
     installedAt: new Date().toLocaleString(),
   };
 }
