@@ -1,6 +1,6 @@
 {
   "name": "agenticmarket",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Install and manage MCP skills from AgenticMarket",
   "type": "module",
   "bin": {
