@@ -61,7 +61,7 @@ export async function auth(apiKey) {
       console.log("");
       console.log(chalk.dim(`  ${"─".repeat(48)}`));
       console.log(
-        `  ${chalk.dim("Double-check your key at")}  ${chalk.cyan.underline("agenticmarket.dev")}`,
+        `  ${chalk.dim("Double-check your key at")}  ${chalk.cyan.underline("https://agenticmarket.dev/dashboard/api-keys")}`,
       );
       console.log("");
       process.exit(1);

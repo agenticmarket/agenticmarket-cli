@@ -19,9 +19,13 @@ export async function list() {
   const installedIDEs = getInstalledIDEs();
 
   if (installedIDEs.length === 0) {
-    console.log(`  ${chalk.yellow("⚠")}  No supported IDEs found on this machine.`);
+    console.log(
+      `  ${chalk.yellow("⚠")}  No supported IDEs found on this machine.`,
+    );
     console.log("");
-    console.log(chalk.dim(`  Supported: Cursor, VS Code, Windsurf, Claude Desktop`));
+    console.log(
+      chalk.dim(`  Supported: Cursor, VS Code, Windsurf, Claude Desktop`),
+    );
     console.log("");
     return;
   }
@@ -32,10 +36,32 @@ export async function list() {
   for (const ide of installedIDEs) {
     const config = readMCPConfig(ide.path, ide.format);
     const servers = config.mcpServers ?? {};
-
-    const ourSkills = Object.entries(servers).filter(([, entry]) =>
-      entry?.url?.startsWith(PROXY_BASE_URL)
-    );
+    const ourSkills = Object.entries(servers).filter(([, entry]) => {
+      // 1. Format using CLI proxy command
+      if (
+        entry?.command === "npx" &&
+        entry?.args &&
+        entry.args.includes("agenticmarket") &&
+        entry.args.includes("proxy")
+      )
+        return true;
+      if (
+        entry?.command === "agenticmarket" &&
+        entry?.args &&
+        entry.args.includes("proxy")
+      )
+        return true;
+      // 2. Format with URL point to web domain
+      if (
+        entry?.skillUrl &&
+        entry.skillUrl.startsWith("https://agenticmarket.dev")
+      )
+        return true;
+      // 3. Fallback for older formats where proxy URL was in .url or .skillUrl
+      if (entry?.url?.startsWith(PROXY_BASE_URL)) return true;
+      if (entry?.skillUrl?.startsWith(PROXY_BASE_URL)) return true;
+      return false;
+    });
 
     if (ourSkills.length === 0) continue;
 
@@ -44,19 +70,41 @@ export async function list() {
     // IDE section header
     console.log(
       `  ${ide.icon}  ${chalk.bold.white(ide.name)}` +
-      chalk.dim(`  (${ourSkills.length} skill${ourSkills.length !== 1 ? "s" : ""})`)
+        chalk.dim(
+          `  (${ourSkills.length} skill${ourSkills.length !== 1 ? "s" : ""})`,
+        ),
     );
     console.log(chalk.dim(`  ${"─".repeat(48)}`));
 
     for (const [name, entry] of ourSkills) {
-      const url = entry?.url ?? "";
-      // Extract username/skill from proxy URL for display
-      const match = url.match(/\/mcp\/([^/]+)\/([^/]+)/);
-      const displayPath = match ? `${match[1]}/${match[2]}` : name;
+      let displayPath = name;
+
+      // Extract username/skill from args (e.g. npx agenticmarket proxy user/skill)
+      if (entry?.args && entry.args.includes("proxy")) {
+        const proxyIdx = entry.args.indexOf("proxy");
+        if (entry.args[proxyIdx + 1]) displayPath = entry.args[proxyIdx + 1];
+      }
+      // Extract from web skillUrl (https://agenticmarket.dev/username/skill)
+      else if (
+        entry?.skillUrl &&
+        entry.skillUrl.startsWith("https://agenticmarket.dev")
+      ) {
+        const urlMatch = entry.skillUrl.match(
+          /agenticmarket\.dev\/([^/]+)\/([^/]+)/,
+        );
+        if (urlMatch) displayPath = `${urlMatch[1]}/${urlMatch[2]}`;
+      }
+      // Extract from old proxy URL format
+      else if (entry?.url || entry?.skillUrl) {
+        const match = (entry.url || entry.skillUrl).match(
+          /\/mcp\/([^/]+)\/([^/]+)/,
+        );
+        if (match) displayPath = `${match[1]}/${match[2]}`;
+      }
 
       console.log(
         `  ${chalk.cyan("›")} ${chalk.white.bold(name.padEnd(28))}` +
-        chalk.dim(displayPath)
+          chalk.dim(displayPath),
       );
       totalSkills++;
     }
@@ -69,7 +117,7 @@ export async function list() {
     console.log(`  ${chalk.dim("No AgenticMarket skills installed yet.")}`);
     console.log("");
     console.log(
-      `  ${chalk.cyan("›")} Run ${chalk.cyan("agenticmarket install <username>/<skill>")} to get started`
+      `  ${chalk.cyan("›")} Run ${chalk.cyan("agenticmarket install <username>/<skill>")} to get started`,
     );
     console.log("");
     return;
@@ -80,11 +128,11 @@ export async function list() {
   console.log("");
   console.log(
     `  ${chalk.green("✓")}  ` +
-    chalk.white.bold(`${totalSkills}`) +
-    chalk.dim(` skill${totalSkills !== 1 ? "s" : ""}`) +
-    chalk.dim(" across ") +
-    chalk.white.bold(`${idesWithSkills}`) +
-    chalk.dim(` IDE${idesWithSkills !== 1 ? "s" : ""}`)
+      chalk.white.bold(`${totalSkills}`) +
+      chalk.dim(` skill${totalSkills !== 1 ? "s" : ""}`) +
+      chalk.dim(" across ") +
+      chalk.white.bold(`${idesWithSkills}`) +
+      chalk.dim(` IDE${idesWithSkills !== 1 ? "s" : ""}`),
   );
   console.log("");
 }
