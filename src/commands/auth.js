@@ -3,8 +3,8 @@
  *
  * agenticmarket auth <api-key>
  *
- * Validates the API key against your worker,
- * then saves it locally to ~/.agenticmarket/config.json
+ * Validates the API key against your AgenticMarket account by fetching your balance.
+ * On success, saves the key and account details to ~/.agenticmarket/config.json for use by other commands.
  */
 
 import chalk from "chalk";
@@ -118,9 +118,9 @@ export async function auth(apiKey) {
     console.log("");
     console.log(chalk.dim(`  ${"─".repeat(48)}`));
     console.log("");
-    console.log(`  ${chalk.dim("Next step — install a skill:")}`);
+    console.log(`  ${chalk.dim("Next step — install an MCP server:")}`);
     console.log(
-      `  ${chalk.cyan("agenticmarket install")} ${chalk.yellow("<username>/<skill>")}`,
+      `  ${chalk.cyan("agenticmarket install")} ${chalk.yellow("<username>/<server-name>")}`,
     );
     console.log("");
   } catch {

@@ -23,7 +23,7 @@ import { logout } from "../src/commands/logout.js";
 import { whoami } from "../src/commands/whoami.js";
 import { proxy } from "../src/commands/proxy.js";
 
-const VERSION = "1.2.1";
+const VERSION = "1.3.0";
 const args = process.argv.slice(2);
 const command = args[0];
 const argument = args[1];
@@ -120,7 +120,7 @@ const header = () => {
     ),
   );
   console.log("");
-  console.log(chalk.dim(`  v${VERSION}  ·  The MCP skill marketplace`));
+  console.log(chalk.dim(`  v${VERSION}  ·  Install MCP servers in One Command`));
   console.log(chalk.dim(`  ${"─".repeat(52)}`));
   console.log("");
 };
@@ -142,13 +142,13 @@ const help = () => {
     console.log(`  ${col1}${col2}${col3}`);
   };
 
-  cmd("auth", "<api-key>", "Save your API key");
-  cmd("install", "<username>/<skill>", "Install a skill to your IDE");
-  cmd("remove", "<skill>", "Remove an installed skill");
-  cmd("list", "", "Show all installed skills");
-  cmd("balance", "", "Check your credit balance");
-  cmd("whoami", "", "Show current account info");
-  cmd("logout", "", "Log out of your account");
+  cmd("auth",    "<api-key>",           "Save your API key");
+  cmd("install", "<username>/<server>", "Install an MCP server to your IDE");
+  cmd("remove",  "<server-name>",       "Remove an installed MCP server");
+  cmd("list",    "",                    "Show all installed MCP servers");
+  cmd("balance", "",                    "Check your credit balance");
+  cmd("whoami",  "",                    "Show current account info");
+  cmd("logout",  "",                    "Log out of your account");
 
   c.gap();
   c.divider();
@@ -160,9 +160,9 @@ const help = () => {
 
   const ex = (line) => console.log(`  ${chalk.dim("$")} ${chalk.white(line)}`);
   ex("agenticmarket auth am_live_xxxxxxxxxxxx");
-  ex("agenticmarket install shekhar/smart-skill");
+  ex("agenticmarket install shekhar/smart-server");
   ex("agenticmarket install shekhar/web-scraper");
-  ex("agenticmarket remove security-scanner");
+  ex("agenticmarket remove web-scraper");
   ex("agenticmarket balance");
 
   c.gap();
@@ -174,7 +174,7 @@ const help = () => {
     `  ${chalk.dim("Tip:")} Use ${chalk.green.bold("amkt")} as shorthand — ${chalk.dim("amkt install shekhar/web-scraper")}`,
   );
   console.log(
-    `  ${chalk.dim("Key:")} Get your API key at ${chalk.cyan.underline("https://agenticmarket.dev")}`,
+    `  ${chalk.dim("Key:")} Get your API key at ${chalk.cyan.underline("https://agenticmarket.dev/dashboard/api-keys")}`,
   );
   c.gap();
 };
@@ -206,6 +206,11 @@ switch (command) {
     break;
 
   case "install":
+    if (!argument) argError("install", "<username>/<skill>");
+    await install(argument);
+    break;
+    
+  case "i":
     if (!argument) argError("install", "<username>/<skill>");
     await install(argument);
     break;

@@ -1,29 +1,65 @@
-# AgenticMarket CLI
+# AgenticMarket — Install MCP Servers in One Command
 
-> Install AI skills into your IDE in seconds — no JSON editing, no manual config.
+> The CLI-first platform for Model Context Protocol servers. Browse, install, and manage MCP servers across every major AI coding tool — no JSON editing, no manual configuration.
 
-AgenticMarket is a marketplace for MCP (Model Context Protocol) skills. This CLI lets you browse, install, and manage skills directly from your terminal. seamlessly.
+[![npm version](https://img.shields.io/npm/v/agenticmarket)](https://www.npmjs.com/package/agenticmarket)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+[![Node.js 18+](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
+
+---
+
+## TL;DR
+
+```bash
+npm install -g agenticmarket
+agenticmarket auth <your-api-key>
+agenticmarket install username/server-name
+```
+
+That installs any MCP server into VS Code, Cursor, Claude Desktop, and every other IDE you have — automatically, without touching a config file. Credits are deducted per successful tool call.
+
+**[Browse MCP servers →](https://agenticmarket.dev/servers)**  
+**[Get your API key →](https://agenticmarket.dev/dashboard/api-keys)**  
+**[Publish your MCP server and earn →](https://agenticmarket.dev/dashboard/submit)**
 
 ---
 
 ## Contents
 
+- [What Is AgenticMarket](#what-is-agenticmarket)
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Commands](#commands)
 - [Supported IDEs](#supported-ides)
 - [How It Works](#how-it-works)
+- [For MCP Server Creators](#for-mcp-server-creators)
 - [Project Structure](#project-structure)
 - [Contributing](#contributing)
+- [FAQ](#faq)
+- [License](#license)
+
+---
+
+## What Is AgenticMarket
+
+AgenticMarket is where developers install MCP servers in one command and creators earn on every call.
+
+The Model Context Protocol (MCP) is the open standard that lets AI assistants — in VS Code, Cursor, Claude Desktop, and other tools — call external tools and data sources. AgenticMarket is the distribution and monetization layer built on top of it.
+
+**For developers using MCP servers:**  
+One command installs any server into every IDE you have. No hunting for JSON config paths. No manual authentication setup. Credits are prepaid and consumed per successful call — you only pay when a tool actually runs.
+
+**For developers publishing MCP servers:**  
+Submit your HTTP MCP server to AgenticMarket, get a proxy secret, and start earning 80% of every call routed through the platform. No changes required if you're already serving over HTTPS. The [Founding Creator program](https://agenticmarket.dev/creators) offers 90% revenue share for the first 100 approved creators.
 
 ---
 
 ## Requirements
 
 - Node.js 18 or higher
-- One of the [supported IDEs](#supported-ides) installed
-- An AgenticMarket account and API key
+- At least one [supported IDE](#supported-ides) installed
+- An [AgenticMarket account](https://agenticmarket.dev) and API key
 
 ---
 
@@ -41,81 +77,83 @@ Or run without installing via npx:
 npx agenticmarket <command>
 ```
 
+The shorthand alias `amkt` is available after global install:
+
+```bash
+amkt install username/server-name
+```
+
 ---
 
 ## Quick Start
 
 ```bash
-# 1. Authenticate with your API key
-agenticmarket auth <your-api-key>
+# Step 1 — Authenticate with your API key
+agenticmarket auth am_live_xxxx
 
-# 2. Check your credit balance
-agenticmarket balance
+# Step 2 — Install an MCP server
+agenticmarket install agenticmarket/web-reader
 
-# 3. Install a skill
-agenticmarket install username/skill-name
-
-# 4. Restart your IDE, then ask your AI to use the skill
+# Step 3 — Open your AI assistant
+# The tool is ready. No restart required in most IDEs.
 ```
+
+The CLI detects every IDE installed on your machine and writes the correct configuration automatically. If you are running the command from inside VS Code or Cursor, those entries appear pre-selected at the top of the prompt.
 
 ---
 
 ## Commands
 
 ### `auth`
+
 Save and verify your API key locally.
 
 ```bash
 agenticmarket auth <api-key>
 ```
 
-Your key is stored in `~/.agenticmarket/config.json`. It is never sent anywhere except the AgenticMarket proxy to authenticate your requests.
-Keep it Secure.
+Your key is stored in `~/.agenticmarket/config.json`. It is never transmitted anywhere except the AgenticMarket platform to authenticate your requests.
 
 ---
 
 ### `install`
-Install a skill into your IDE's MCP config.
+
+Install an MCP server into your IDE configuration files.
 
 ```bash
-agenticmarket install <username>/<skill-name>
+agenticmarket install <username>/<server-name>
 
-# The @ prefix is optional — both work
+# The @ prefix is optional — both are equivalent
 agenticmarket install @alice/summarizer
 agenticmarket install alice/summarizer
 ```
 
 The CLI will:
-1. Verify the skill exists on the marketplace
-2. Detect all supported IDEs on your machine
-3. Ask which IDE(s) to install to
-4. Write the MCP config entry automatically
 
-**Name conflicts** — if a skill with the same name is already installed from a different author, you'll be prompted to choose an alias so both can coexist:
+1. Verify the server exists on AgenticMarket
+2. Detect every IDE installed on your machine
+3. Present a selection prompt — your active IDE's options appear first
+4. Write the MCP configuration entry for each selected target, creating config directories if they do not exist
 
-```
-⚠ A different skill is already installed under the name "summarizer".
+**Smart pre-selection** — if you run the command from inside VS Code, Cursor, Windsurf, or Gemini CLI, that IDE's project and global options are pre-ticked.
 
-  Choose an alias:
-  ❯ alice-summarizer
-    summarizer-2
-    summarizer-am
-    Enter a custom name...
-```
+**Name conflict resolution** — if a server with the same name is already installed from a different author, you are prompted to assign an alias so both coexist without overwriting each other.
 
 ---
 
 ### `remove`
-Remove a skill from your IDE's MCP config.
+
+Remove an MCP server from all IDE configurations it was installed to.
 
 ```bash
-agenticmarket remove <skill-name>
+agenticmarket remove <server-name>
 ```
 
 ---
 
 ### `list`
-Show all skills currently installed across your IDEs.
+
+Show all AgenticMarket MCP servers currently installed across your IDEs.
 
 ```bash
 agenticmarket list
@@ -124,6 +162,7 @@ agenticmarket list
 ---
 
 ### `balance`
+
 Check your current credit balance.
 
 ```bash
@@ -132,37 +171,88 @@ agenticmarket balance
 
 ---
 
+### `whoami`
+
+Display your current account details.
+
+```bash
+agenticmarket whoami
+```
+
+---
+
 ## Supported IDEs
 
-| IDE | Config location |
-|---|---|
-| **Claude Desktop** | `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) |
-| **Cursor** (global) | `~/.cursor/mcp.json` |
-| **Cursor** (project) | `.cursor/mcp.json` in current directory |
-| **VS Code** | `.vscode/mcp.json` in current directory |
+The CLI automatically detects which IDEs are installed on your machine by checking well-known configuration paths. Only IDEs that are actually present on your system appear in the selection menu.
 
-The CLI detects which IDE you're running in and pre-selects it. If multiple IDEs are found, you can choose which ones to install to.
+> If an IDE does not appear in the prompt, it is not installed or has not been opened at least once to initialise its config directory.
 
-> **Linux users:** Claude Desktop config is read from `~/.config/claude/claude_desktop_config.json`.
+### Detection and Scope
+
+Each IDE supports one or both of:
+
+- **Project** — configuration lives inside your project folder (e.g. `.cursor/mcp.json`). Can be committed with your project and shared with your team.
+- **Global** — configuration lives in your home or app-data directory. Available across all projects.
+
+| IDE | Project Config | Global Config | Detection Signal |
+|---|---|---|---|
+| **VS Code** | `.vscode/mcp.json` | See paths below | VS Code user-data dir exists |
+| **Cursor** | `.cursor/mcp.json` | `~/.cursor/mcp.json` | `~/.cursor` dir exists |
+| **Claude Desktop** | — | See paths below | App config dir exists |
+| **Claude Code** | `.mcp.json` | `~/.claude.json` | `~/.claude` dir exists |
+| **Windsurf** | — | `~/.codeium/windsurf/mcp_config.json` | `~/.codeium/windsurf` dir exists |
+| **Gemini CLI** | `.gemini/settings.json` | `~/.gemini/settings.json` | `~/.gemini` dir exists |
+| **Zed** | — | See paths below | Zed config dir exists |
+| **Cline** (VS Code ext) | — | VS Code globalStorage | Extension settings dir exists |
+| **Codex** | — | `~/.codex/config.json` | `~/.codex` dir exists |
+| **Antigravity** | `.gemini/antigravity/mcp_config.json` | `~/.gemini/antigravity/mcp_config.json` | `~/.gemini/antigravity` dir exists |
+
+### Platform-Specific Global Paths
+
+| IDE | Windows | macOS | Linux |
+|---|---|---|---|
+| VS Code | `%APPDATA%\Code\User\mcp.json` | `~/Library/Application Support/Code/User/mcp.json` | `~/.config/Code/User/mcp.json` |
+| Claude Desktop | `%APPDATA%\Claude\claude_desktop_config.json` | `~/Library/Application Support/Claude/claude_desktop_config.json` | `~/.config/claude/claude_desktop_config.json` |
+| Zed | `%APPDATA%\Zed\settings.json` | `~/Library/Application Support/Zed/settings.json` | `~/.config/zed/settings.json` |
 
 ---
 
 ## How It Works
 
 ```
-Your IDE (MCP client)
-  → POST /mcp/<username>/<skill>   (with x-api-key header)
-  → AgenticMarket Proxy            (Cloudflare Worker)
-      ├─ Authenticates your key
-      ├─ Checks your credit balance
-      ├─ Forwards request to the skill creator's MCP server
-      └─ Deducts credits on success
-  → Response returned to your IDE
+Your AI assistant calls a tool
+  → AgenticMarket authenticates your API key
+  → Your credit balance is verified
+  → The request is forwarded to the creator's MCP server
+  → The result is returned to your AI assistant
+  → Credits are deducted only on a successful response
 ```
 
-Skills are charged **per tool call**, only on success. If the upstream server is unreachable or returns an error, you are not charged.
+Charges apply **per successful tool call only**. If the server is unreachable or returns an error, you are not charged.
 
-The CLI installs skills using just the plain skill name as the MCP server key (e.g. `summarizer`, not `alice/summarizer`). This ensures compatibility across all MCP clients — slashes in server names cause issues in most IDEs.
+The CLI writes MCP server entries using just the plain server name as the key (e.g. `web-reader`, not `agenticmarket/web-reader`). This ensures compatibility across all MCP clients — slashes in server names cause parsing issues in several IDEs.
+
+---
+
+## For MCP Server Creators
+
+If you have built an MCP server and want it to earn revenue, AgenticMarket handles the distribution, authentication, billing, and payouts.
+
+**What you need:**
+
+- A publicly accessible HTTPS endpoint serving the MCP protocol
+- An [AgenticMarket account](https://agenticmarket.dev)
+
+**How publishing works:**
+
+1. Submit your server at [agenticmarket.dev/dashboard/submit](https://agenticmarket.dev/dashboard/submit)
+2. The AgenticMarket team reviews it within 24 hours
+3. On approval, you receive a proxy secret to validate in your server
+4. Users install your server via the CLI — you earn 80% of every call
+5. Withdraw earnings via Wise (global) or Razorpay (India) once you reach the $20 minimum
+
+**Founding Creator program:**  
+The first 100 approved creators earn 90% revenue share for 12 months, receive featured placement, priority review, and a permanent Founding Creator badge. [Learn more →](https://agenticmarket.dev/creators)
 
 ---
 
@@ -170,15 +260,17 @@ The CLI installs skills using just the plain skill name as the MCP server key (e
 
 ```
 bin/
-  cli.js               ← Entry point and command router
+  cli.js                  Entry point and command router
 src/
-  config.js            ← API key storage, IDE detection, MCP config read/write
+  config.js               IDE registry, detection, config read/write, API key storage
   commands/
-    auth.js            ← Save and verify API key
-    balance.js         ← Check credit balance
-    install.js         ← Install a skill into IDE config files
-    list.js            ← List installed skills
-    remove.js          ← Remove a skill from IDE config files
+    auth.js               Save and verify API key
+    balance.js            Check credit balance
+    install.js            Install an MCP server into IDE config files
+    list.js               List installed MCP servers
+    remove.js             Remove an MCP server from IDE config files
+    whoami.js             Show account info
+    logout.js             Clear stored API key
 ```
 
 ---
@@ -189,29 +281,86 @@ src/
 # Install dependencies
 npm install
 
-# Run any command locally
+# Run any command locally without global install
 node bin/cli.js --help
 node bin/cli.js auth <api-key>
-node bin/cli.js balance
-node bin/cli.js install username/skill-name
+node bin/cli.js install username/server-name
 node bin/cli.js list
-node bin/cli.js remove skill-name
+node bin/cli.js remove server-name
 ```
-
 
 ---
 
 ## Contributing
 
-Pull requests are welcome. For significant changes, please open an issue first to discuss what you'd like to change.
+Pull requests are welcome. For significant changes, open an issue first to discuss the proposed change.
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/my-change`
 3. Commit your changes: `git commit -m 'add: my change'`
 4. Push and open a pull request
 
+Please note the [license terms](#license) before contributing. By submitting a pull request you agree that your contribution will be governed by the same license.
+
+---
+
+## FAQ
+
+### What is the Model Context Protocol (MCP)?
+
+MCP is an open standard developed by Anthropic that lets AI assistants call external tools, APIs, and data sources during a conversation. When you ask an AI assistant to read a webpage, check a URL, or query an API, it uses an MCP server to do that. AgenticMarket is the platform where developers find, install, and monetize those servers.
+
+### How do I install an MCP server into VS Code?
+
+Run `npm install -g agenticmarket`, authenticate with `agenticmarket auth <your-key>`, then run `agenticmarket install username/server-name`. The CLI detects VS Code automatically and writes the correct entry into `.vscode/mcp.json` or the global VS Code MCP config. No manual JSON editing required.
+
+### How do I install an MCP server into Cursor?
+
+Same process. After authenticating, run `agenticmarket install username/server-name`. If you run the command from inside Cursor, the Cursor project and global options appear pre-selected in the IDE prompt. The CLI writes the entry into `.cursor/mcp.json` or `~/.cursor/mcp.json` depending on your selection.
+
+### Does this work with Claude Desktop?
+
+Yes. AgenticMarket automatically detects Claude Desktop and writes to the correct platform-specific config path — `claude_desktop_config.json` on Windows and macOS, `~/.config/claude/claude_desktop_config.json` on Linux.
+
+### How does billing work?
+
+AgenticMarket uses a prepaid credits system. You purchase credits ($15 minimum, no expiry) and they are consumed per successful MCP tool call. If a call fails or the server is unreachable, you are not charged. You can check your balance at any time with `agenticmarket balance`.
+
+### Can I install the same MCP server into multiple IDEs at once?
+
+Yes. The install prompt lets you select multiple targets in one command. You can install to VS Code project config, VS Code global, Cursor global, and Claude Desktop all in a single `agenticmarket install` run.
+
+### What IDEs are supported?
+
+VS Code, Cursor, Claude Desktop, Claude Code, Windsurf, Gemini CLI, Zed, Cline (VS Code extension), Codex, and Antigravity. See the [Supported IDEs](#supported-ides) section for the full detection and configuration path details.
+
+### I built an MCP server. How do I publish it and start earning?
+
+Submit your server at [agenticmarket.dev/dashboard/submit](https://agenticmarket.dev/dashboard/submit). Your server needs to be a publicly accessible HTTPS endpoint implementing the MCP protocol. After a 24-hour review, you receive a proxy secret to validate on your server. From that point, every call users make through the platform earns you 80% of the call price. The first 100 approved creators earn 90% for 12 months under the Founding Creator program.
+
+### Is the CLI open source?
+
+The source code is publicly visible on GitHub under the MIT license. See [LICENSE](./LICENSE) for the full terms.
+
+### Where can I find MCP servers to install?
+
+Browse all available servers at [agenticmarket.dev/servers](https://agenticmarket.dev/servers). AgenticMarket publishes and maintains a set of general-purpose servers under the `@agenticmarket` namespace — including `web-reader`, `rss-reader`, `url-status`, `site-metadata`, `sitemap-reader`, and `json-tools` — available immediately after you authenticate.
+
+---
+
+## Links
+
+- [agenticmarket.dev](https://agenticmarket.dev) — Platform homepage
+- [agenticmarket.dev/servers](https://agenticmarket.dev/servers) — Browse MCP servers
+- [agenticmarket.dev/docs](https://agenticmarket.dev/docs) — Full documentation
+- [agenticmarket.dev/pricing](https://agenticmarket.dev/pricing) — Credits and pricing
+- [agenticmarket.dev/docs/founding-creator](https://agenticmarket.dev/docs/founding-creator) — Founding Creator program
+- [support@agenticmarket.dev](mailto:support@agenticmarket.dev) — Support
+
 ---
 
 ## License
 
-MIT
+MIT — see LICENSE file for details.
+
+Support contact [support@agenticmarket.dev](mailto:support@agenticmarket.dev).

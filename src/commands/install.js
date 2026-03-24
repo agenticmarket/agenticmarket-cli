@@ -1,16 +1,16 @@
 /**
  * src/commands/install.js
  *
- * agenticmarket install <skill-name>
+ * agenticmarket install <username>/<server-name>
  *
  * 1. Checks API key exists
- * 2. Verifies skill exists on marketplace
+ * 2. Verifies MCP server exists on marketplace
  * 3. Finds all IDEs installed on this machine
- * 4. Resolves what key to use in mcpServers (MCP clients can't handle "user/skill")
- *    → If no conflict: uses plain skill name e.g. "summarizer"
- *    → If conflict with SAME author/url: tells user it's already installed, skips
- *    → If conflict with DIFFERENT skill: asks user to pick an alias, suggests options
- * 5. Edits their MCP config files automatically (using the correct format per IDE)
+ * 4. Resolves what key to use in mcpServers (MCP clients can't handle "user/server")
+ *    → If no conflict: uses plain server name e.g. "summarizer"
+ *    → If conflict with SAME author: tells user it's already installed, skips
+ *    → If conflict with DIFFERENT server: asks user to pick an alias
+ * 5. Edits their MCP config files automatically (correct format per IDE)
  * 6. Done — no manual JSON editing needed
  */
 
@@ -20,16 +20,17 @@ import prompts from "prompts";
 import {
   getApiKey,
   getInstalledIDEs,
-  detectCurrentIDE,
+  detectRunningIDE,
   readMCPConfig,
   writeMCPConfig,
   buildMCPEntry,
   PROXY_BASE_URL,
   API_BASE_URL,
+  IDE_CONFIGS,
 } from "../config.js";
 
 // ── UI helpers (inline) ───────────────────────────────────────────────────────
-const box = (title) => {
+const box      = (title) => {
   const pad = "═".repeat(52);
   console.log(chalk.cyan.bold(`╔${pad}╗`));
   console.log(chalk.cyan.bold(`║  ${title.padEnd(50)}║`));
@@ -51,20 +52,20 @@ function normalizeUsername(username) {
   return username.startsWith("@") ? username.slice(1) : username;
 }
 
-function suggestAliases(skill, username) {
+function suggestAliases(server, username) {
   return [
-    `${username}-${skill}`,
-    `${skill}-2`,
-    `${skill}-am`,
-    `${username}-${skill}-ai`,
+    `${username}-${server}`,
+    `${server}-2`,
+    `${server}-am`,
+    `${username}-${server}-ai`,
   ];
 }
 
-export async function install(rawSkillName) {
+export async function install(rawServerName) {
   gap();
 
   // ── Header ────────────────────────────────────────────
-  box("Install Skill");
+  box("Install MCP Server");
   gap();
 
   // ── Step 1: Check auth ────────────────────────────────
@@ -79,43 +80,43 @@ export async function install(rawSkillName) {
     process.exit(1);
   }
 
-  // ── Parse username/skill ──────────────────────────────
-  const parts = rawSkillName.split("/");
+  // ── Parse username/server ─────────────────────────────
+  const parts    = rawServerName.split("/");
   const username = normalizeUsername(parts[0]);
-  const skill = parts[1];
+  const server   = parts[1];
 
-  if (!username || !skill) {
-    err("Invalid skill format");
+  if (!username || !server) {
+    err("Invalid format");
     gap();
     divider();
-    dim(`Use the format: ${chalk.yellow("<username>/<skill>")}`);
+    dim(`Use the format: ${chalk.yellow("<username>/<server-name>")}`);
     dim(`Example:        ${chalk.cyan("agenticmarket install alice/summarizer")}`);
     gap();
     process.exit(1);
   }
 
-  row("Skill",    `${username}/${skill}`, chalk.cyan);
+  row("Server", `${username}/${server}`, chalk.cyan);
   gap();
 
-  // ── Step 2: Verify skill on marketplace ───────────────
+  // ── Step 2: Verify MCP server on marketplace ──────────
   const spinner = ora({
-    text: chalk.dim("Looking up skill on marketplace..."),
+    text: chalk.dim("Looking up server on marketplace..."),
     color: "cyan",
     spinner: "dots",
   }).start();
 
-  let skillData;
+  let serverData;
   try {
-    const res = await fetch(`${API_BASE_URL}/skills/${username}/${skill}`, {
+    const res = await fetch(`${API_BASE_URL}/skills/${username}/${server}`, {
       headers: { "x-api-key": apiKey, command: "install" },
     });
 
     if (res.status === 404) {
       spinner.stop();
-      err(`Skill "${username}/${skill}" not found`);
+      err(`Server "${username}/${server}" not found`);
       gap();
       divider();
-      info(`Browse skills at ${chalk.cyan.underline("https://agenticmarket.dev/skills")}`);
+      info(`Browse servers at ${chalk.cyan.underline("https://agenticmarket.dev/servers")}`);
       gap();
       process.exit(1);
     }
@@ -127,7 +128,7 @@ export async function install(rawSkillName) {
       process.exit(1);
     }
 
-    skillData = await res.json();
+    serverData = await res.json();
     spinner.stop();
   } catch {
     spinner.stop();
@@ -136,26 +137,47 @@ export async function install(rawSkillName) {
     process.exit(1);
   }
 
-  ok(`Found ${chalk.cyan(`${username}/${skill}`)}`);
-  row("Price",       `$${skillData.price} per call`, chalk.green);
-  row("Description", skillData.description ?? "—",   chalk.dim);
+  ok(`Found ${chalk.cyan(`${username}/${server}`)}`);
+  row("Price",       `$${serverData.price} per call`, chalk.green);
+  row("Description", serverData.description ?? "—",   chalk.dim);
   gap();
   divider();
   gap();
 
-  // ── Step 3: Find installed IDEs ───────────────────────
-  const installedIDEs = getInstalledIDEs();
+  // ── Step 3: Build IDE list ──────────────────────────────────────────────────
+  //
+  // Strategy:
+  //   1. Detect which IDE the terminal is running inside (env var hint)
+  //   2. Always include BOTH scopes (project + global) for that IDE, ordered
+  //      project first — even if the project folder doesn't exist yet
+  //      (writeMCPConfig creates the dir automatically on install)
+  //   3. Append all OTHER filesystem-detected IDEs after, deduped
+  // ────────────────────────────────────────────────────────────────────────────
+  const runningIDE = detectRunningIDE(); // "vscode" | "cursor" | "windsurf" | "gemini" | null
+
+  // Entries for the IDE the user is currently running inside (project → global order)
+  const runningIDEEntries = runningIDE
+    ? IDE_CONFIGS
+        .filter((ide) => ide.runningIDEId === runningIDE)
+        .sort((a) => (a.scope === "project" ? -1 : 1))
+    : [];
+
+  // All other IDEs detected via filesystem (skip running IDE to avoid duplicates)
+  const runningIds    = new Set(runningIDEEntries.map((e) => e.id));
+  const otherDetected = getInstalledIDEs().filter((ide) => !runningIds.has(ide.id));
+
+  const installedIDEs = [...runningIDEEntries, ...otherDetected];
 
   if (installedIDEs.length === 0) {
     warn("No supported IDEs detected on this machine");
     gap();
-    dim("Supported: Claude Desktop, Cursor, VS Code, Windsurf");
+    dim("Supported: Claude Desktop, Claude Code, Cursor, VS Code, Windsurf, Gemini CLI, Zed, Cline, Codex");
     dim("Make sure one is installed and has been opened at least once.");
     gap();
     divider();
     gap();
     dim("Manual setup — add this to your MCP config:");
-    printManualConfig(skill, username, apiKey);
+    printManualConfig(server, username);
     process.exit(0);
   }
 
@@ -163,36 +185,31 @@ export async function install(rawSkillName) {
   let targetIDEs;
 
   if (installedIDEs.length === 1) {
+    // Only one option — simple yes/no
     const { confirm } = await prompts({
       type: "confirm",
       name: "confirm",
       message: `  Install to ${installedIDEs[0].icon} ${chalk.white(installedIDEs[0].name)}?`,
       initial: true,
     });
-
-    if (!confirm) {
-      gap();
-      dim("Cancelled — nothing was changed.");
-      gap();
-      process.exit(0);
-    }
+    if (!confirm) { gap(); dim("Cancelled — nothing was changed."); gap(); process.exit(0); }
     targetIDEs = installedIDEs;
   } else {
-    const currentIDE = detectCurrentIDE();
+    // Multi-select — running IDE entries pre-ticked at top
     const { selected } = await prompts({
       type: "multiselect",
       name: "selected",
-      message: "  Install to which IDEs?",
-      choices: installedIDEs.map((ide) => {
-        const isCurrent =
-          (currentIDE === "vscode"  && ide.name === "VS Code") ||
-          (currentIDE === "cursor"  && ide.name.startsWith("Cursor"));
-        return {
-          title: `${ide.icon}  ${ide.name}`,
-          value: ide,
-          selected: currentIDE ? isCurrent : true,
-        };
-      }),
+      message: runningIDE
+        ? `  ${runningIDEEntries[0]?.icon ?? ""} ${runningIDEEntries[0]?.name.split(" ")[0] ?? ""} detected — install to:`
+        : "  Install to which IDEs?",
+      choices: installedIDEs.map((ide) => ({
+        title: `${ide.icon}  ${ide.name}  ${chalk.dim(ide.scope)}`,
+        value: ide,
+        // Pre-tick: running IDE entries only. If no running IDE, tick project-scope.
+        selected: runningIDE
+          ? ide.runningIDEId === runningIDE
+          : ide.scope === "project",
+      })),
       instructions: false,
       hint: "Space to toggle, Enter to confirm",
     });
@@ -207,38 +224,38 @@ export async function install(rawSkillName) {
   }
 
   // ── Step 5: Resolve MCP key / detect conflict ─────────
-  const expectedUrl = `${PROXY_BASE_URL}/mcp/${username}/${skill}`;
-  let resolvedKey = skill;
+  const expectedUrl = `${PROXY_BASE_URL}/mcp/${username}/${server}`;
+  let resolvedKey   = server;
   let conflictFound = false;
-  let isSameSkill = false;
+  let isSameServer  = false;
 
   for (const ide of targetIDEs) {
-    const config = readMCPConfig(ide.path, ide.format);
-    const existing = config.mcpServers?.[skill];
+    const config   = readMCPConfig(ide.configPath, ide.configKey);
+    const existing = config.mcpServers?.[server];
     if (!existing) continue;
     conflictFound = true;
     const existingUrl    = existing.url    ?? "";
     const existingAuthor = existing.author ?? "";
-    if (existingUrl === expectedUrl || existingAuthor === username) isSameSkill = true;
+    if (existingUrl === expectedUrl || existingAuthor === username) isSameServer = true;
     break;
   }
 
-  if (conflictFound && isSameSkill) {
+  if (conflictFound && isSameServer) {
     gap();
-    warn(`${chalk.bold(skill)} by ${chalk.cyan(username)} is already installed`);
+    warn(`${chalk.bold(server)} by ${chalk.cyan(username)} is already installed`);
     gap();
-    dim("Restart your IDE if the skill isn't active yet.");
+    dim("Restart your IDE if the server isn't active yet.");
     gap();
     process.exit(0);
   }
 
-  if (conflictFound && !isSameSkill) {
+  if (conflictFound && !isSameServer) {
     gap();
-    warn(`A different skill is already using the name ${chalk.bold(`"${skill}"`)}`);
-    dim("You need an alias for this skill in your MCP config.");
+    warn(`A different server is already using the name ${chalk.bold(`"${server}"`)}`);
+    dim("You need an alias for this server in your MCP config.");
     gap();
 
-    const suggestions = suggestAliases(skill, username);
+    const suggestions = suggestAliases(server, username);
     const { aliasChoice } = await prompts({
       type: "select",
       name: "aliasChoice",
@@ -295,7 +312,7 @@ export async function install(rawSkillName) {
     }).start();
 
     try {
-      const config = readMCPConfig(ide.path, ide.format);
+      const config       = readMCPConfig(ide.configPath, ide.configKey);
       const existingEntry = config.mcpServers?.[resolvedKey];
 
       if (existingEntry) {
@@ -308,11 +325,15 @@ export async function install(rawSkillName) {
         }
       }
 
-      config.mcpServers[resolvedKey] = buildMCPEntry(
-        skill, username,
-        skillData.description, skillData.price_cents
+      const baseEntry = buildMCPEntry(
+        server, username,
+        serverData.description, serverData.price_cents
       );
-      writeMCPConfig(ide.path, config);
+      // Some IDEs (e.g. Zed) use a different schema — transformEntry normalises it
+      config.mcpServers[resolvedKey] = ide.transformEntry
+        ? ide.transformEntry(baseEntry)
+        : baseEntry;
+      writeMCPConfig(ide.configPath, config);
 
       writeSpinner.stop();
       ok(`${ide.icon}  ${chalk.white(ide.name)}`);
@@ -328,44 +349,43 @@ export async function install(rawSkillName) {
     gap();
     divider();
     gap();
-    ok(chalk.green.bold("Skill installed"));
+    ok(chalk.green.bold("MCP server installed"));
     gap();
-    row("Skill",    `${username}/${skill}`,                                   chalk.cyan);
-    if (resolvedKey !== skill)
-      row("Alias",  `${resolvedKey}  ${chalk.dim("(name used in config)")}`,  chalk.yellow);
-    row("Added to", `${successCount} IDE${successCount !== 1 ? "s" : ""}`,    chalk.white);
+    row("Server",   `${username}/${server}`,                                   chalk.cyan);
+    if (resolvedKey !== server)
+      row("Alias",  `${resolvedKey}  ${chalk.dim("(name used in config)")}`,   chalk.yellow);
+    row("Added to", `${successCount} IDE${successCount !== 1 ? "s" : ""}`,     chalk.white);
     gap();
     divider();
     gap();
-    console.log(`  ${chalk.yellow("⚡")}  ${chalk.yellow.bold("Restart your IDE to activate the skill")}`);
+    console.log(`  ${chalk.yellow("⚡")}  ${chalk.yellow.bold("Restart your IDE to activate the server")}`);
     gap();
-    dim(`Then ask your AI: ${chalk.italic(`"Use the ${resolvedKey} skill to..."`)}`);
+    dim(`Then ask your AI: ${chalk.italic(`"Use the ${resolvedKey} server to..."`)}`);
     gap();
   }
 }
 
 // ── Manual config fallback ────────────────────────────────────────────────────
-function printManualConfig(skill, username) {
-  const entry = buildMCPEntry(skill, username);
+function printManualConfig(server, username) {
   gap();
   console.log(chalk.dim(`  ${"─".repeat(48)}`));
   gap();
-  dim(`Claude Desktop / Cursor — add to ${chalk.white("mcpServers")}:`);
+  dim(`Add to your IDE's MCP config under ${chalk.white("mcpServers")}:`);
   gap();
   console.log(
-    chalk.dim(`    "${skill}": { "type": "http", "url": "${entry.url}",`),
+    chalk.dim(`    "${server}": {`),
   );
   console.log(
-    chalk.dim(`      "headers": { "x-api-key": "your_key_here" } }`),
-  );
-  gap();
-  dim(`VS Code — add to ${chalk.white(".vscode/mcp.json")} servers:`);
-  gap();
-  console.log(
-    chalk.dim(`    "${skill}": { "type": "http", "url": "${entry.url}",`),
+    chalk.dim(`      "type": "stdio",`),
   );
   console.log(
-    chalk.dim(`      "headers": { "x-api-key": "your_key_here" } }`),
+    chalk.dim(`      "command": "npx",`),
+  );
+  console.log(
+    chalk.dim(`      "args": ["agenticmarket", "proxy", "${username}/${server}"]`),
+  );
+  console.log(
+    chalk.dim(`    }`),
   );
   gap();
 }

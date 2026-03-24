@@ -1,6 +1,6 @@
 /**
  * src/commands/remove.js
- * agenticmarket remove <skill-name>
+ * agenticmarket remove <server-name>
  */
 
 import chalk from "chalk";
@@ -12,13 +12,13 @@ import {
   writeMCPConfig,
 } from "../config.js";
 
-export async function remove(skillName) {
+export async function remove(serverName) {
   console.log("");
 
   // ── Header box ──────────────────────────────────────────
   const pad = "═".repeat(52);
   console.log(chalk.cyan.bold(`╔${pad}╗`));
-  console.log(chalk.cyan.bold(`║  ${"Remove Skill".padEnd(50)}║`));
+  console.log(chalk.cyan.bold(`║  ${"Remove MCP Server".padEnd(50)}║`));
   console.log(chalk.cyan.bold(`╚${pad}╝`));
   console.log("");
 
@@ -35,20 +35,20 @@ export async function remove(skillName) {
     process.exit(1);
   }
 
-  // ── Find IDEs that have this skill ──────────────────────
-  const installedIDEs = getInstalledIDEs();
-  const IDEsWithSkill = installedIDEs.filter((ide) => {
-    const config = readMCPConfig(ide.path, ide.format);
-    return !!config.mcpServers?.[skillName];
+  // ── Find IDEs that have this server ─────────────────────
+  const installedIDEs  = getInstalledIDEs();
+  const idesWithServer = installedIDEs.filter((ide) => {
+    const config = readMCPConfig(ide.configPath, ide.configKey);
+    return !!config.mcpServers?.[serverName];
   });
 
-  if (IDEsWithSkill.length === 0) {
+  if (idesWithServer.length === 0) {
     console.log(
-      `  ${chalk.yellow("⚠")}  ${chalk.yellow(`"${skillName}" is not installed in any IDE`)}`
+      `  ${chalk.yellow("⚠")}  ${chalk.yellow(`"${serverName}" is not installed in any IDE`)}`
     );
     console.log("");
     console.log(
-      `  ${chalk.dim("Run")} ${chalk.cyan("agenticmarket list")} ${chalk.dim("to see installed skills")}`
+      `  ${chalk.dim("Run")} ${chalk.cyan("agenticmarket list")} ${chalk.dim("to see installed servers")}`
     );
     console.log("");
     process.exit(0);
@@ -56,14 +56,14 @@ export async function remove(skillName) {
 
   // ── Show what will be removed ───────────────────────────
   console.log(
-    `  ${chalk.dim("Skill")}   ${chalk.white.bold(skillName)}`
+    `  ${chalk.dim("Server")}   ${chalk.white.bold(serverName)}`
   );
   console.log(
-    `  ${chalk.dim("Found in")} ${chalk.white(IDEsWithSkill.length + " IDE" + (IDEsWithSkill.length !== 1 ? "s" : ""))}`
+    `  ${chalk.dim("Found in")} ${chalk.white(idesWithServer.length + " IDE" + (idesWithServer.length !== 1 ? "s" : ""))}`
   );
   console.log("");
 
-  for (const ide of IDEsWithSkill) {
+  for (const ide of idesWithServer) {
     console.log(`  ${chalk.dim("·")}  ${ide.icon}  ${chalk.dim(ide.name)}`);
   }
 
@@ -75,11 +75,10 @@ export async function remove(skillName) {
   const { confirm } = await prompts({
     type: "confirm",
     name: "confirm",
-    message: `  Remove ${chalk.cyan(skillName)}?`,
+    message: `  Remove ${chalk.cyan(serverName)}?`,
     initial: false,
   });
 
-  // Handle Ctrl+C
   if (confirm === undefined) {
     console.log("");
     console.log(`  ${chalk.dim("Cancelled.")}`);
@@ -97,13 +96,13 @@ export async function remove(skillName) {
   // ── Remove from each IDE ────────────────────────────────
   console.log("");
   let removed = 0;
-  let failed = 0;
+  let failed  = 0;
 
-  for (const ide of IDEsWithSkill) {
+  for (const ide of idesWithServer) {
     try {
-      const config = readMCPConfig(ide.path, ide.format);
-      delete config.mcpServers[skillName];
-      writeMCPConfig(ide.path, config);
+      const config = readMCPConfig(ide.configPath, ide.configKey);
+      delete config.mcpServers[serverName];
+      writeMCPConfig(ide.configPath, config);
       console.log(
         `  ${chalk.green("✓")}  ${ide.icon}  ${chalk.white(ide.name)}`
       );
@@ -123,7 +122,7 @@ export async function remove(skillName) {
 
   if (failed === 0) {
     console.log(
-      `  ${chalk.green("✓")}  ${chalk.green.bold(`${skillName} removed`)}` +
+      `  ${chalk.green("✓")}  ${chalk.green.bold(`${serverName} removed`)}` +
       chalk.dim(`  from ${removed} IDE${removed !== 1 ? "s" : ""}`)
     );
     console.log("");
