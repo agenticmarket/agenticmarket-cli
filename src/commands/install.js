@@ -362,6 +362,8 @@ export async function install(rawServerName) {
     gap();
     dim(`Then ask your AI: ${chalk.italic(`"Use the ${resolvedKey} server to..."`)}`);
     gap();
+    console.log(`  ${chalk.yellow("⭐")}  ${chalk.dim("Enjoying AgenticMarket?")} ${chalk.cyan.underline("https://github.com/agenticmarket/agenticmarket-cli")} ${chalk.dim("— give us a star!")}`);
+    gap();
   }
 }
 

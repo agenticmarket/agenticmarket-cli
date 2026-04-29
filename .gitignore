@@ -1,2 +1,8 @@
 node_modules/
 .vscode/
+.github/
+.agent/
+.gemini
+.vscode/
+.codex/
+.copilot/

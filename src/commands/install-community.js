@@ -96,20 +96,10 @@ export async function installCommunity(slug) {
     process.exit(1);
   }
 
-  // ── Check if already installed ────────────────────────
+  // ── Check if already installed (per-IDE aware) ────────
   const registry = loadCommunityRegistry();
-  if (registry[slug]) {
-    gap();
-    warn(`${chalk.bold(slug)} is already installed`);
-    gap();
-    row("Config key", registry[slug].configKey, chalk.cyan);
-    row("Installed",  registry[slug].installedAt ?? "—", chalk.dim);
-    gap();
-    dim("Restart your IDE if the server isn't active yet.");
-    dim(`Run ${chalk.cyan(`agenticmarket remove ${registry[slug].configKey}`)} to reinstall.`);
-    gap();
-    process.exit(0);
-  }
+  const existingEntry = registry[slug];
+  const alreadyInstalledIdes = existingEntry?.ides ?? [];
 
   row("Server", slug, chalk.magenta);
   row("Type",   "Community", chalk.dim);
@@ -238,42 +228,102 @@ export async function installCommunity(slug) {
   }
 
   // ── Step 4: Ask which IDEs to install to ──────────────
+
+  // Tag each choice with whether the server is already installed in that IDE
+  for (const choice of choices) {
+    choice.alreadyInstalled = alreadyInstalledIdes.includes(choice.ide.id);
+  }
+
+  const newChoices       = choices.filter((c) => !c.alreadyInstalled);
+  const installedChoices = choices.filter((c) => c.alreadyInstalled);
+
   let targetChoices;
 
-  if (choices.length === 1) {
-    const { confirm } = await prompts({
+  // If ALL detected IDEs already have this server, offer reinstall
+  if (newChoices.length === 0 && installedChoices.length > 0) {
+    gap();
+    warn(`${chalk.bold(slug)} is already installed in all detected IDEs`);
+    gap();
+    for (const c of installedChoices) {
+      dim(`  ${c.ide.icon}  ${c.ide.name}  ${chalk.dim(c.ide.scope)}  ${chalk.green("✓ installed")}`);
+    }
+    gap();
+    if (existingEntry) {
+      row("Config key", existingEntry.configKey, chalk.cyan);
+      row("Installed",  existingEntry.installedAt ?? "—", chalk.dim);
+    }
+    gap();
+
+    const { reinstall } = await prompts({
       type: "confirm",
-      name: "confirm",
-      message: `  Install to ${choices[0].ide.icon} ${chalk.white(choices[0].ide.name)}?`,
-      initial: true,
-    });
-    if (!confirm) { gap(); dim("Cancelled — nothing was changed."); gap(); process.exit(0); }
-    targetChoices = choices;
-  } else {
-    const { selected } = await prompts({
-      type: "multiselect",
-      name: "selected",
-      message: runningIDE
-        ? `  ${runningIDEEntries[0]?.icon ?? ""} ${runningIDEEntries[0]?.name.split(" ")[0] ?? ""} detected — install to:`
-        : "  Install to which IDEs?",
-      choices: choices.map((choice) => ({
-        title: `${choice.ide.icon}  ${choice.ide.name}  ${chalk.dim(choice.ide.scope)}${choice.source === "fallback" ? chalk.dim(" (generic)") : ""}`,
-        value: choice,
-        selected: runningIDE
-          ? choice.ide.runningIDEId === runningIDE
-          : choice.ide.scope === "project",
-      })),
-      instructions: false,
-      hint: "Space to toggle, Enter to confirm",
+      name: "reinstall",
+      message: `  Reinstall / update in these IDEs?`,
+      initial: false,
     });
 
-    if (!selected || selected.length === 0) {
+    if (!reinstall) {
       gap();
-      dim("Cancelled — nothing was changed.");
+      dim("No changes made. Restart your IDE if the server isn't active yet.");
       gap();
       process.exit(0);
     }
-    targetChoices = selected;
+    // User wants reinstall — continue with all installed choices
+    targetChoices = choices;
+  }
+
+  // Only prompt for IDE selection if reinstall didn't already set targetChoices
+  if (!targetChoices) {
+    if (choices.length === 1) {
+    const already = choices[0].alreadyInstalled;
+      const { confirm } = await prompts({
+        type: "confirm",
+        name: "confirm",
+        message: already
+          ? `  ${choices[0].ide.icon} ${chalk.white(choices[0].ide.name)} ${chalk.yellow("(already installed)")} — reinstall?`
+          : `  Install to ${choices[0].ide.icon} ${chalk.white(choices[0].ide.name)}?`,
+        initial: !already,
+      });
+      if (!confirm) { gap(); dim("Cancelled — nothing was changed."); gap(); process.exit(0); }
+      targetChoices = choices;
+    } else {
+      // Show installed status in the multi-select list
+      if (installedChoices.length > 0 && newChoices.length > 0) {
+        gap();
+        info(`Already installed in:`);
+        for (const c of installedChoices) {
+          dim(`  ${c.ide.icon}  ${c.ide.name}  ${chalk.dim(c.ide.scope)}  ${chalk.green("✓")}`);
+        }
+        gap();
+      }
+
+      const { selected } = await prompts({
+        type: "multiselect",
+        name: "selected",
+        message: runningIDE
+          ? `  ${runningIDEEntries[0]?.icon ?? ""} ${runningIDEEntries[0]?.name.split(" ")[0] ?? ""} detected — install to:`
+          : "  Install to which IDEs?",
+        choices: choices.map((choice) => ({
+          title: `${choice.ide.icon}  ${choice.ide.name}  ${chalk.dim(choice.ide.scope)}${choice.source === "fallback" ? chalk.dim(" (generic)") : ""}${choice.alreadyInstalled ? chalk.yellow(" (installed)") : ""}`,
+          value: choice,
+          // Pre-tick: new IDEs that match running IDE or project scope. Already-installed IDEs are unchecked.
+          selected: choice.alreadyInstalled
+            ? false
+            : runningIDE
+              ? choice.ide.runningIDEId === runningIDE
+              : choice.ide.scope === "project",
+        })),
+        instructions: false,
+        hint: "Space to toggle, Enter to confirm",
+      });
+
+      if (!selected || selected.length === 0) {
+        gap();
+        dim("Cancelled — nothing was changed.");
+        gap();
+        process.exit(0);
+      }
+      targetChoices = selected;
+    }
   }
 
   // ── Step 5: Resolve config key + detect conflicts ─────
@@ -283,17 +333,22 @@ export async function installCommunity(slug) {
   // ──────────────────────────────────────────────────────────────────────────
 
   // Determine the config key from the first available specific config
-  let resolvedKey = slug;
-  const firstSpecific = targetChoices.find((c) => c.source === "specific");
-  if (firstSpecific) {
-    const parsed = parseCommunityIdeConfig(firstSpecific.apiConfig.config);
-    if (parsed?.name) resolvedKey = parsed.name;
+  // If previously installed, reuse the same config key to avoid re-triggering alias prompts
+  let resolvedKey = existingEntry?.configKey ?? slug;
+  if (!existingEntry) {
+    const firstSpecific = targetChoices.find((c) => c.source === "specific");
+    if (firstSpecific) {
+      const parsed = parseCommunityIdeConfig(firstSpecific.apiConfig.config);
+      if (parsed?.name) resolvedKey = parsed.name;
+    }
   }
 
   // Check for key conflicts across targeted IDEs
   let conflictFound = false;
 
   for (const choice of targetChoices) {
+    // Skip conflict check for IDEs that already have this server — finding the key is expected
+    if (choice.alreadyInstalled) continue;
     const config   = readMCPConfig(choice.ide.configPath, choice.ide.configKey);
     const existing = config.mcpServers?.[resolvedKey];
     if (existing) {
@@ -423,7 +478,8 @@ export async function installCommunity(slug) {
 
   // ── Step 7: Track install + save to local registry ────
   if (successCount > 0) {
-    // Save to local community registry
+    // Merge new IDE IDs with previously tracked ones
+    const mergedIdes = [...new Set([...alreadyInstalledIdes, ...installedIdeIds])];
     addCommunityInstall(slug, {
       name:        serverData.name,
       slug:        slug,
@@ -431,7 +487,7 @@ export async function installCommunity(slug) {
       author:      serverData.author ?? "community",
       description: serverData.description ?? "",
       installedAt: new Date().toISOString(),
-      ides:        installedIdeIds,
+      ides:        mergedIdes,
     });
 
     // Track installs on the server (fire-and-forget per IDE, don't block the user)
@@ -470,6 +526,8 @@ export async function installCommunity(slug) {
       gap();
     }
     dim(`Then ask your AI: ${chalk.italic(`"Use the ${resolvedKey} server to..."`)}`);
+    gap();
+    console.log(`  ${chalk.yellow("⭐")}  ${chalk.dim("Enjoying AgenticMarket?")} ${chalk.cyan.underline("https://github.com/agenticmarket/agenticmarket-cli")} ${chalk.dim("— give us a star!")}`);
     gap();
   }
 }

@@ -491,6 +491,28 @@ export function getInstalledIDEs() {
  * Callers always read/write via `mcpServers` (internal alias).
  * writeMCPConfig restores the real key on disk.
  */
+/**
+ * stripJsonc(text)
+ *
+ * Strips JSONC artifacts so strict JSON.parse can handle files written by
+ * VS Code and other editors that allow:
+ *   - single-line comments  //
+ *   - block comments         /* ... *​/
+ *   - trailing commas        { "a": 1, }
+ *
+ * Lightweight — no npm dependency required.
+ */
+function stripJsonc(text) {
+  // 1. Remove single-line comments (// …) — but not inside strings
+  //    Naive but sufficient: VS Code config files don't embed "//" in values
+  let result = text.replace(/^\s*\/\/.*$/gm, "");
+  // 2. Remove block comments /* … */
+  result = result.replace(/\/\*[\s\S]*?\*\//g, "");
+  // 3. Remove trailing commas before } or ]
+  result = result.replace(/,\s*([}\]])/g, "$1");
+  return result;
+}
+
 export function readMCPConfig(filePath, configKey = "mcpServers") {
   const isYaml = filePath.endsWith(".yaml") || filePath.endsWith(".yml");
   const isToml = filePath.endsWith(".toml");
@@ -502,7 +524,7 @@ export function readMCPConfig(filePath, configKey = "mcpServers") {
     let parsed;
     if (isToml)      parsed = toml.parse(raw) || {};
     else if (isYaml) parsed = yaml.parse(raw) || {};
-    else             parsed = JSON.parse(raw) || {};
+    else             parsed = JSON.parse(stripJsonc(raw)) || {};
 
     if (!parsed[configKey]) parsed[configKey] = isYaml && configKey === "extensions" ? [] : {};
 
