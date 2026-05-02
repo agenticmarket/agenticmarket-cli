@@ -25,7 +25,7 @@ import { logout } from "../src/commands/logout.js";
 import { whoami } from "../src/commands/whoami.js";
 import { proxy } from "../src/commands/proxy.js";
 
-const VERSION = "1.4.0";
+const VERSION = "1.4.1";
 const args = process.argv.slice(2);
 const command = args[0];
 const argument = args[1];
