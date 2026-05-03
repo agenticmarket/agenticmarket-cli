@@ -67,6 +67,8 @@ export function securityMiddleware(): MiddlewareHandler {
     const requestId = crypto.randomUUID();
     c.header("X-Request-ID", requestId);
     c.header("X-Content-Type-Options", "nosniff");
+    c.header("X-Frame-Options", "DENY");
+    c.header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
     // Strip revealing headers (set by downstream or framework)
     c.res.headers.delete("X-Powered-By");
     c.res.headers.delete("Server");

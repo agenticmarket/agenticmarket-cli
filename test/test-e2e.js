@@ -44,8 +44,8 @@ function copyTemplate(srcDir, destDir, tokens) {
 
 console.log("\n  ── E2E Test: Scaffold → Install → Run → Health Check ──\n");
 
-// Clean
-if (fs.existsSync(PROJECT_DIR)) fs.rmSync(PROJECT_DIR, { recursive: true });
+// Clean — robust against Windows EBUSY from prior runs
+try { fs.rmSync(PROJECT_DIR, { recursive: true, force: true }); } catch { /* locked from prior run, will use fresh subdir */ }
 fs.mkdirSync(PROJECT_DIR, { recursive: true });
 
 // Scaffold
@@ -164,15 +164,15 @@ try {
 
 // Kill server
 server.kill("SIGTERM");
-await new Promise((resolve) => setTimeout(resolve, 1000));
+await new Promise((resolve) => setTimeout(resolve, 2000));
 
-// Cleanup
-fs.rmSync(E2E_DIR, { recursive: true, force: true });
-
-// Result
+// Result BEFORE cleanup — don't let cleanup errors mask test result
 const allPassed = healthOk && authOk && !zodInfection;
 console.log(`\n  ${"═".repeat(40)}`);
 console.log(`  E2E Result: ${allPassed ? "PASS ✓" : "FAIL ✗"}`);
 console.log(`  ${"═".repeat(40)}\n`);
+
+// Cleanup — best-effort, Windows may hold locks
+try { fs.rmSync(E2E_DIR, { recursive: true, force: true }); } catch { /* Windows EBUSY, harmless */ }
 
 process.exit(allPassed ? 0 : 1);

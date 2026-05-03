@@ -165,6 +165,10 @@ my-weather-api/
 - CORS (no origins by default)
 - `X-Powered-By` / `Server` header stripping
 - Production requires `MCP_SECRET` (500 if missing)
+- CSP headers + X-Frame-Options DENY
+- Body size limit (1 MB — prevents memory DoS)
+- Session idle timeout (30 min auto-cleanup)
+- Graceful shutdown on SIGTERM/SIGINT
 
 **After scaffolding:**
 
@@ -174,6 +178,8 @@ npm install
 npm run dev        # server at http://localhost:3000
 npm run inspect    # MCP Inspector UI at localhost:6274
 ```
+
+→ **[Full `create` documentation — security details, architecture, roadmap](./CREATE.md)**
 
 ---
 

@@ -98,11 +98,13 @@ const freshFiles = [
   ".env.example",
   ".gitignore",
   "README.md",
+  "AGENTS.md",
   "wrangler.toml",
   "Dockerfile",
   "src/index.ts",
   "src/middleware/security.ts",
   "src/middleware/rateLimit.ts",
+  "src/middleware/logger.ts",
   "src/tools/index.ts",
   "src/tools/echo.ts",
   "src/types.ts",
@@ -313,6 +315,78 @@ assert(!securityTs.includes("zod/v4"), "security.ts has NO zod/v4 import");
 assert(!rateLimitTs.includes("zod/v4"), "rateLimit.ts has NO zod/v4 import");
 assert(!indexTs.includes("zod/v4"), "index.ts has NO zod/v4 import");
 assert(!serverJson._meta?.["dev.agenticmarket"]?.pricing, "server.json has NO hardcoded pricing");
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TEST 12: New security features
+// ═══════════════════════════════════════════════════════════════════════════
+
+console.log("\n  ── Security Hardening ──\n");
+
+assert(securityTs.includes("X-Frame-Options"), "security.ts sets X-Frame-Options");
+assert(securityTs.includes("Content-Security-Policy"), "security.ts sets CSP header");
+assert(securityTs.includes("frame-ancestors 'none'"), "CSP blocks framing");
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TEST 13: Infrastructure hardening
+// ═══════════════════════════════════════════════════════════════════════════
+
+console.log("\n  ── Infrastructure ──\n");
+
+assert(indexTs.includes("bodyLimit"), "index.ts uses body limit middleware");
+assert(indexTs.includes("SESSION_TTL_MS"), "index.ts has session timeout");
+assert(indexTs.includes("gracefulShutdown"), "index.ts has graceful shutdown");
+assert(indexTs.includes("SIGTERM"), "index.ts handles SIGTERM");
+assert(indexTs.includes("SIGINT"), "index.ts handles SIGINT");
+assert(indexTs.includes("lastActivity"), "sessions track last activity");
+
+const dockerfile = fs.readFileSync(path.join(freshTarget, "Dockerfile"), "utf-8");
+assert(dockerfile.includes("node:22"), "Dockerfile uses node:22");
+assert(dockerfile.includes("mcpuser"), "Dockerfile runs as non-root user");
+assert(dockerfile.includes("HEALTHCHECK"), "Dockerfile has HEALTHCHECK");
+assert(dockerfile.includes("--env-file"), "Dockerfile uses --env-file");
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TEST 14: AGENTS.md
+// ═══════════════════════════════════════════════════════════════════════════
+
+console.log("\n  ── AGENTS.md ──\n");
+
+const agentsMd = fs.readFileSync(path.join(freshTarget, "AGENTS.md"), "utf-8");
+assert(agentsMd.includes("AI Coding Assistants"), "AGENTS.md has purpose header");
+assert(agentsMd.includes("snake_case"), "AGENTS.md specifies snake_case tool naming");
+assert(agentsMd.includes("node:process"), "AGENTS.md warns about node:process");
+assert(agentsMd.includes("npm run inspect"), "AGENTS.md mentions Inspector");
+assert(agentsMd.includes("DO NOT REMOVE"), "AGENTS.md warns against removing security");
+
+const wrapperAgentsMd = fs.readFileSync(path.join(wrapperTarget, "AGENTS.md"), "utf-8");
+assert(wrapperAgentsMd.includes("apiClient"), "api-wrapper AGENTS.md references apiClient");
+assert(wrapperAgentsMd.includes("ApiClientError"), "api-wrapper AGENTS.md mentions error handling");
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TEST 15: Logger middleware
+// ═══════════════════════════════════════════════════════════════════════════
+
+console.log("\n  ── Logger ──\n");
+
+const loggerTs = fs.readFileSync(
+  path.join(freshTarget, "src", "middleware", "logger.ts"),
+  "utf-8",
+);
+assert(loggerTs.includes("devLogger"), "logger.ts exports devLogger");
+assert(loggerTs.includes("performance.now()"), "logger.ts measures duration");
+assert(loggerTs.includes("getHours"), "logger.ts includes timestamp");
+assert(loggerTs.includes('NODE_ENV !== "production"'), "logger.ts is dev-only");
+assert(indexTs.includes("devLogger()"), "index.ts wires devLogger middleware");
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TEST 16: Startup banner
+// ═══════════════════════════════════════════════════════════════════════════
+
+console.log("\n  ── Startup Banner ──\n");
+
+assert(indexTs.includes("╔═"), "index.ts has box-drawing startup banner");
+assert(indexTs.includes("Inspector"), "startup banner mentions Inspector");
+assert(indexTs.includes("npm run validate"), "startup banner has publish CTA");
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TEST 11: Name validation
