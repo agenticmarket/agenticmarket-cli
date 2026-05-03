@@ -26,6 +26,10 @@ Edit `.env` to add your API credentials. See `.env.example` for all options.
 | `npm run build` | Bundle for production (`dist/`) |
 | `npm start` | Run production build |
 
+<br />
+
+![Inspector UI](https://cdn.agenticmarket.dev/docs/Screenshot_3-5-2026_175552_localhost.jpeg)
+
 ## Configuration
 
 Set these in your `.env`:

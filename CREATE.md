@@ -381,6 +381,8 @@ npm run inspect   # Terminal 2: open Inspector at localhost:6274
 ```
 In Inspector: select "Streamable HTTP" → enter `http://localhost:3000/mcp` → add `x-mcp-secret` header → Connect → call tools.
 
+![Inspector UI](https://cdn.agenticmarket.dev/docs/Screenshot_3-5-2026_175552_localhost.jpeg)
+
 **CLI mode (CI-ready):**
 ```bash
 npm run test:tools

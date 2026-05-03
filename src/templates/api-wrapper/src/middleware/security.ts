@@ -40,8 +40,8 @@ export function securityMiddleware(): MiddlewareHandler {
     }
 
     // ── Layer 2: Secret Header Validation ────────────────────────────────────
-    // Skip for health endpoint
-    if (c.req.path !== "/health") {
+    // Skip for health endpoint and CORS preflight (OPTIONS)
+    if (c.req.path !== "/health" && c.req.method !== "OPTIONS") {
       if (!secret && !isDev) {
         // PRODUCTION without a secret = hard block
         return c.json(

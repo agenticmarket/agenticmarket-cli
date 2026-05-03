@@ -87,17 +87,13 @@ app.post("/mcp", async (c) => {
   const { req, res } = toReqRes(c.req.raw);
 
   let session = sessionId ? sessions.get(sessionId) : undefined;
+  let isNewSession = false;
 
   if (!session) {
     // New session — create server + transport, connect them
     session = createSession();
     await session.server.connect(session.transport);
-
-    // Store session once transport assigns an ID
-    const assignedId = session.transport.sessionId;
-    if (assignedId) {
-      sessions.set(assignedId, session);
-    }
+    isNewSession = true;
   }
 
   // Update activity timestamp
@@ -105,14 +101,11 @@ app.post("/mcp", async (c) => {
 
   await session.transport.handleRequest(req, res);
 
-  res.on("close", () => {
-    // If this was the final message, the transport will have closed
-    if (session && session.transport.sessionId) {
-      const sid = session.transport.sessionId;
-      if (!sessions.has(sid)) return;
-      // Keep session alive — transport handles lifecycle
-    }
-  });
+  // Store session AFTER handleRequest — transport assigns sessionId
+  // only during the initialize request processing, not during connect()
+  if (isNewSession && session.transport.sessionId) {
+    sessions.set(session.transport.sessionId, session);
+  }
 
   return toFetchResponse(res);
 });
