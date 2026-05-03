@@ -56,7 +56,7 @@ agenticmarket install username/server-name
 
 ## What Is AgenticMarket
 
-AgenticMarket is where developers install MCP servers in one command and creators earn on every call.
+AgenticMarket is where developers build and install MCP servers in one command and creators earn on every call.
 
 The Model Context Protocol (MCP) is the open standard that lets AI assistants — in VS Code, Cursor, Claude Desktop, and other tools — call external tools and data sources. AgenticMarket is the distribution and monetization layer built on top of it.
 

@@ -32,7 +32,7 @@ import { create } from "../src/commands/create.js";
 import { validate } from "../src/commands/validate.js";
 import { addTool } from "../src/commands/add-tool.js";
 
-const VERSION = "1.5.0";
+const VERSION = "2.0.0";
 const args = process.argv.slice(2);
 const command = args[0];
 const argument = args[1];
@@ -130,7 +130,7 @@ const header = () => {
     ),
   );
   console.log("");
-  console.log(chalk.dim(`  v${VERSION}  ·  Install MCP servers in One Command`));
+  console.log(chalk.dim(`  v${VERSION}  ·  Build and Install MCP servers in One Command`));
   console.log(chalk.dim(`  ${"─".repeat(52)}`));
   console.log("");
 };
@@ -152,18 +152,18 @@ const help = () => {
     console.log(`  ${col1}${col2}${col3}`);
   };
 
-  cmd("create",   "<name>",              "Scaffold a new MCP server project");
-  cmd("create",   "<name> --json",       "Scaffold with JSON output (CI mode)");
-  cmd("add",      "tool <name>",         "Add a new tool to an existing project");
-  cmd("validate", "",                    "Pre-publish security audit");
-  cmd("auth",     "<api-key>",           "Save your API key");
-  cmd("install",  "<username>/<server>", "Install an official MCP server");
-  cmd("install",  "<slug>",              "Install a community MCP server");
-  cmd("remove",   "<server-name>",       "Remove an installed MCP server");
-  cmd("list",     "",                    "Show all installed MCP servers");
-  cmd("balance",  "",                    "Check your credit balance");
-  cmd("whoami",   "",                    "Show current account info");
-  cmd("logout",   "",                    "Log out of your account");
+  cmd("create", "<name>", "Scaffold a new MCP server project");
+  cmd("create", "<name> --json", "Scaffold with JSON output (CI mode)");
+  cmd("add", "tool <name>", "Add a new tool to an existing project");
+  cmd("validate", "", "Pre-publish security audit");
+  cmd("auth", "<api-key>", "Save your API key");
+  cmd("install", "<username>/<server>", "Install an official MCP server");
+  cmd("install", "<slug>", "Install a community MCP server");
+  cmd("remove", "<server-name>", "Remove an installed MCP server");
+  cmd("list", "", "Show all installed MCP servers");
+  cmd("balance", "", "Check your credit balance");
+  cmd("whoami", "", "Show current account info");
+  cmd("logout", "", "Log out of your account");
 
   c.gap();
   c.divider();
@@ -257,7 +257,7 @@ switch (command) {
       await installCommunity(argument);
     }
     break;
-    
+
   case "i":
     if (!argument) argError("install", "<username>/<server> or <slug>");
     if (argument.includes("/")) {
