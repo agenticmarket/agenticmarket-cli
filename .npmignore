@@ -1,0 +1,23 @@
+# Development and Test files
+test/
+_e2e_test/
+tests/
+coverage/
+
+# IDE and System files
+.vscode/
+.github/
+.agent/
+.gemini
+.codex/
+.copilot/
+.DS_Store
+
+# Config files not needed in production
+.npmignore
+.gitignore
+tsconfig.json
+
+# (Note: the package.json "files" array already strictly limits 
+# what gets published to just bin/ and src/, but this acts as a 
+# secondary safety net to prevent accidental leakage)

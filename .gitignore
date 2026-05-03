@@ -3,6 +3,7 @@ node_modules/
 .github/
 .agent/
 .gemini
-.vscode/
 .codex/
 .copilot/
+_e2e_test/  
+ 
