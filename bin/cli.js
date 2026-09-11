@@ -251,6 +251,7 @@ const optionValue = (argv, name) => {
 
 const skillOptions = (argv) => ({
   agent: optionValue(argv, "--agent"),
+  all: argv.includes("--all"),
   scope: optionValue(argv, "--scope") || "project",
   overwrite: argv.includes("--overwrite") || argv.includes("--force"),
   json: argv.includes("--json"),

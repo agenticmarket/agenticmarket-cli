@@ -29,16 +29,20 @@ agenticmarket install username/server-name
 
 ```bash
 agenticmarket skill list
+agenticmarket skill install nextjs-app-router
 agenticmarket skill install nextjs-app-router --agent andromity --scope project
+agenticmarket skill install nextjs-app-router --agent cursor,claude-code
 agenticmarket skill install nextjs-app-router --all --scope user
 agenticmarket skill update nextjs-app-router --agent cursor
 agenticmarket skill remove nextjs-app-router --agent cursor
 ```
 
 Skills are free, public `SKILL.md` instruction packages. Skill installation does
-not require an API key. The CLI writes the native file format for each selected
-agent, preserves existing files unless `--overwrite` is supplied, and records a
-best-effort install event for marketplace analytics.
+not require an API key. Without `--agent` or `--all`, the CLI opens a multi-select
+prompt so you can choose exactly which agent(s) receive the skill. The CLI writes
+the native file format for each selected agent, preserves existing files unless
+`--overwrite` is supplied, and records a best-effort install event for marketplace
+analytics. Use `--agent` or `--all` in scripts and CI.
 
 `create` scaffolds a production-ready Hono + TypeScript MCP server with security middleware, rate limiting, and deployment config in ~30 seconds.
 

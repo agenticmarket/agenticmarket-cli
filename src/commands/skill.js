@@ -14,6 +14,7 @@ import path from "path";
 import crypto from "crypto";
 import chalk from "chalk";
 import ora from "ora";
+import prompts from "prompts";
 import { MARKETPLACE_API_BASE_URL } from "../config.js";
 
 const VALID_SCOPES = new Set(["project", "user"]);
@@ -27,6 +28,24 @@ const ALL_AGENTS = [
   "copilot",
   "codex",
 ];
+
+const AGENT_CHOICES = [
+  { value: "andromity", title: "Andromity", description: "Native .andromity/skills support" },
+  { value: "cursor", title: "Cursor", description: "Native .cursor/rules/*.mdc support" },
+  { value: "claude-code", title: "Claude Code", description: "Native .claude/skills support" },
+  { value: "windsurf", title: "Windsurf", description: "Managed .windsurfrules support" },
+  { value: "antigravity", title: "Antigravity / Gemini CLI", description: "Native .agent/skills support" },
+  { value: "cline", title: "Cline", description: "Native .clinerules support" },
+  { value: "copilot", title: "GitHub Copilot", description: "Managed .github/copilot-instructions.md support" },
+  { value: "codex", title: "Codex", description: "Native .codex/skills support" },
+];
+
+class AgentSelectionCancelled extends Error {
+  constructor() {
+    super("Agent selection cancelled");
+    this.code = "AGENT_SELECTION_CANCELLED";
+  }
+}
 
 const box = (title) => {
   const pad = "═".repeat(52);
@@ -126,6 +145,36 @@ function parseAgents(value) {
   return [...new Set(agents)];
 }
 
+async function selectAgents() {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw new Error("Choose an agent with --agent <id> or --all when running non-interactively");
+  }
+
+  const response = await prompts({
+    type: "multiselect",
+    name: "agents",
+    message: "Install this skill for which agent(s)?",
+    choices: AGENT_CHOICES.map((agent) => ({
+      title: agent.title,
+      description: agent.description,
+      value: agent.value,
+      selected: agent.value === "andromity",
+    })),
+    instructions: false,
+    hint: "Space to toggle · Enter to install",
+    min: 1,
+  });
+
+  if (!response.agents?.length) throw new AgentSelectionCancelled();
+  return response.agents;
+}
+
+async function resolveAgents(options = {}) {
+  if (options.agent) return parseAgents(options.agent);
+  if (options.all) return [...ALL_AGENTS];
+  return selectAgents();
+}
+
 function assertSlug(slug) {
   if (!/^[a-z0-9][a-z0-9-]{0,127}$/.test(slug)) {
     throw new Error("Skill slug must contain lowercase letters, numbers, and hyphens only");
@@ -207,7 +256,7 @@ function writeSkillFile(filePath, content, overwrite, aggregate = false) {
 export async function installSkill(slug, options = {}) {
   assertSlug(slug);
   const scope = options.scope || "project";
-  const agents = parseAgents(options.agent || "all");
+  const agents = await resolveAgents(options);
   if (!VALID_SCOPES.has(scope)) throw new Error("Scope must be project or user");
 
   const skill = await fetchSkill(slug);
@@ -282,6 +331,10 @@ export async function skillInstallCommand(slug, options = {}) {
     gap();
   } catch (error) {
     spinner?.fail(error.message);
+    if (error?.code === "AGENT_SELECTION_CANCELLED") {
+      dim("Cancelled — nothing was changed.");
+      return;
+    }
     if (options.json) console.log(JSON.stringify({ error: error.message }, null, 2));
     else err(error.message);
     process.exitCode = 1;
@@ -312,7 +365,16 @@ export async function skillListCommand(options = {}) {
 
 export async function skillRemoveCommand(slug, options = {}) {
   assertSlug(slug);
-  const agents = parseAgents(options.agent || "all");
+  let agents;
+  try {
+    agents = await resolveAgents(options);
+  } catch (error) {
+    if (error?.code === "AGENT_SELECTION_CANCELLED") {
+      dim("Cancelled — nothing was changed.");
+      return;
+    }
+    throw error;
+  }
   const scope = options.scope || "project";
   const removed = [];
   for (const agent of agents) {
