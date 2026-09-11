@@ -34,7 +34,7 @@ export async function list() {
     );
     console.log("");
     console.log(
-      chalk.dim(`  Supported: Claude Desktop, Claude Code, Cursor, VS Code, Windsurf, Gemini CLI, Zed, Cline, Codex`),
+      chalk.dim(`  Supported: Andromity, Claude Desktop, Claude Code, Cursor, VS Code, Windsurf, Gemini CLI, Zed, Cline, Codex, Antigravity, Copilot, Goose`),
     );
     console.log("");
     return;

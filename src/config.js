@@ -29,7 +29,8 @@ const AM_CONFIG_DIR  = path.join(os.homedir(), ".agenticmarket");
 const AM_CONFIG_FILE = path.join(AM_CONFIG_DIR, "config.json");
 
 export const PROXY_BASE_URL = "https://api.agenticmarket.dev";
-export const API_BASE_URL   = PROXY_BASE_URL;
+export const API_BASE_URL   = "https://agenticmarket.dev";
+export const MARKETPLACE_API_BASE_URL = "https://marketplaceapi.agenticmarket.dev/v1/marketplace";
 
 export function saveConfig(data) {
   if (!fs.existsSync(AM_CONFIG_DIR)) fs.mkdirSync(AM_CONFIG_DIR, { recursive: true });
@@ -90,6 +91,30 @@ const windsurfConfigDir = path.join(home, ".codeium", "windsurf");
 // "project" entries represent per-repo config (only shown when marker exists).
 
 export const IDE_CONFIGS = [
+
+  // ── Andromity (global) ──────────────────────────────────────────────────────
+  {
+    id:   "andromity-global",
+    name: "Andromity (global)",
+    icon: "🦾",
+    scope: "global",
+    runningIDEId: "andromity",
+    configPath: path.join(home, ".andromity", "mcp.json"),
+    configKey:  "servers",
+    detect() { return fs.existsSync(path.join(home, ".andromity")); },
+  },
+
+  // ── Andromity (project) ─────────────────────────────────────────────────────
+  {
+    id:   "andromity-project",
+    name: "Andromity (project)",
+    icon: "🦾",
+    scope: "project",
+    runningIDEId: "andromity",
+    configPath: path.join(process.cwd(), ".andromity", "mcp.json"),
+    configKey:  "servers",
+    detect() { return fs.existsSync(path.join(process.cwd(), ".andromity")); },
+  },
 
   // ── Claude Desktop ──────────────────────────────────────────────────────────
   {
@@ -446,7 +471,7 @@ export const IDE_CONFIGS = [
 /**
  * detectRunningIDE()
  *
- * Returns "antigravity" | "vscode" | "cursor" | "windsurf" | "gemini" | null.
+ * Returns "andromity" | "antigravity" | "vscode" | "cursor" | "windsurf" | "gemini" | null.
  * Uses env vars injected by the IDE's built-in terminal as a HINT only —
  * never as a gate. Used purely for pre-selecting the active IDE in prompts.
  */
@@ -456,6 +481,10 @@ export function detectRunningIDE() {
   const term       = (process.env.TERM_PROGRAM             ?? "").toLowerCase();
   const agentId    = (process.env.ANTIGRAVITY_AGENT_ID     ?? "").toLowerCase();
   const convId     = (process.env.ANTIGRAVITY_CONVERSATION_ID ?? "").toLowerCase();
+  const andromityClient = (process.env.ANDROMITY_CLIENT    ?? "").toLowerCase();
+
+  // Andromity injects ANDROMITY_CLIENT into its terminal / sub-agents — top priority
+  if (andromityClient) return "andromity";
 
   // Antigravity injects its own env vars into subprocesses it spawns
   if (agentId || convId) return "antigravity";
@@ -683,6 +712,7 @@ export function getCommunityByConfigKey(configKey) {
  * Used to match API-provided IDE configs to locally detected IDEs.
  */
 export const COMMUNITY_IDE_MAP = {
+  "andromity":      ["andromity-global", "andromity-project"],
   "cursor":         ["cursor-global", "cursor-project"],
   "vscode":         ["vscode-project", "vscode-global"],
   "claude-desktop": ["claude-desktop"],

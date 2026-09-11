@@ -31,6 +31,13 @@ import { proxy } from "../src/commands/proxy.js";
 import { create } from "../src/commands/create.js";
 import { validate } from "../src/commands/validate.js";
 import { addTool } from "../src/commands/add-tool.js";
+import { searchCmd, discoverCmd } from "../src/commands/search.js";
+import {
+  skillInstallCommand,
+  skillListCommand,
+  skillRemoveCommand,
+  skillUpdateCommand,
+} from "../src/commands/skill.js";
 
 const VERSION = "2.0.0";
 const args = process.argv.slice(2);
@@ -130,7 +137,7 @@ const header = () => {
     ),
   );
   console.log("");
-  console.log(chalk.dim(`  v${VERSION}  ·  Build and Install MCP servers in One Command`));
+  console.log(chalk.dim(`  v${VERSION}  ·  Build and install MCP servers and agent skills`));
   console.log(chalk.dim(`  ${"─".repeat(52)}`));
   console.log("");
 };
@@ -147,7 +154,7 @@ const help = () => {
   // Pad the raw strings BEFORE applying chalk so ANSI codes don't break alignment
   const cmd = (name, args, desc) => {
     const col1 = chalk.cyan(name.padEnd(10));
-    const col2 = chalk.yellow(args.padEnd(22));
+    const col2 = chalk.yellow(args.padEnd(30));
     const col3 = chalk.dim(desc);
     console.log(`  ${col1}${col2}${col3}`);
   };
@@ -157,11 +164,14 @@ const help = () => {
   cmd("add", "tool <name>", "Add a new tool to an existing project");
   cmd("validate", "", "Pre-publish security audit");
   cmd("auth", "<api-key>", "Save your API key");
+  cmd("search", "<query> [--limit=N] [--json]", "Search MCP servers (free, no auth)");
+  cmd("discover", "[--limit=N] [--json]", "Show featured servers");
+  cmd("skill", "<command> <slug>", "Install, list, update, or remove free skills");
   cmd("install", "<username>/<server>", "Install an official MCP server");
   cmd("install", "<slug>", "Install a community MCP server");
   cmd("remove", "<server-name>", "Remove an installed MCP server");
   cmd("list", "", "Show all installed MCP servers");
-  cmd("balance", "", "Check your credit balance");
+  cmd("balance", "", "Check legacy account balance");
   cmd("whoami", "", "Show current account info");
   cmd("logout", "", "Log out of your account");
 
@@ -178,6 +188,15 @@ const help = () => {
   ex("agenticmarket create my-weather-server");
   c.gap();
   ex("agenticmarket auth am_live_xxxxxxxxxxxx");
+  c.gap();
+  ex("agenticmarket search web");
+  ex("agenticmarket discover --json");
+  c.gap();
+  console.log(chalk.dim("  # Agent skills (free, no API key required)"));
+  ex("agenticmarket skill list");
+  ex("agenticmarket skill install nextjs-app-router --agent andromity --scope project");
+  ex("agenticmarket skill update nextjs-app-router --all");
+  ex("agenticmarket skill remove nextjs-app-router --agent cursor");
   c.gap();
   console.log(chalk.dim("  # Official servers (proxy)"));
   ex("agenticmarket install shekhar/smart-server");
@@ -222,6 +241,20 @@ const unknownCmd = (cmd) => {
   c.gap();
   process.exit(1);
 };
+
+const optionValue = (argv, name) => {
+  const inline = argv.find((value) => value.startsWith(`${name}=`));
+  if (inline) return inline.slice(name.length + 1);
+  const index = argv.indexOf(name);
+  return index >= 0 ? argv[index + 1] : undefined;
+};
+
+const skillOptions = (argv) => ({
+  agent: optionValue(argv, "--agent"),
+  scope: optionValue(argv, "--scope") || "project",
+  overwrite: argv.includes("--overwrite") || argv.includes("--force"),
+  json: argv.includes("--json"),
+});
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 
@@ -282,6 +315,86 @@ switch (command) {
 
   case "whoami":
     await whoami();
+    break;
+
+  case "search":
+    {
+      let limit;
+      const limitEq = flags.find((f) => f.startsWith("--limit="));
+      if (limitEq) limit = parseInt(limitEq.split("=")[1], 10);
+      else {
+        const idx = args.indexOf("--limit");
+        if (idx !== -1 && args[idx + 1]) limit = parseInt(args[idx + 1], 10);
+      }
+      const asJson = flags.includes("--json");
+      // build query without flags and flag values
+      const raw = args.slice(1);
+      const qParts = [];
+      for (let i = 0; i < raw.length; i++) {
+        const a = raw[i];
+        if (a === "--limit") { i++; continue; }
+        if (a.startsWith("--limit=") || a === "--json") continue;
+        if (a.startsWith("--")) continue;
+        qParts.push(a);
+      }
+      const q = qParts.join(" ");
+      if (!q) {
+        c.gap();
+        c.err(`Missing query for ${chalk.white("search")}`);
+        c.info(`Usage: ${chalk.cyan("agenticmarket search")} ${chalk.yellow("<query> [--limit=N] [--json]")}`);
+        c.gap();
+        process.exit(1);
+      }
+      await searchCmd(q, { limit, json: asJson });
+    }
+    break;
+
+  case "discover":
+    {
+      let limit;
+      const limitEq = flags.find((f) => f.startsWith("--limit="));
+      if (limitEq) limit = parseInt(limitEq.split("=")[1], 10);
+      else {
+        const idx = args.indexOf("--limit");
+        if (idx !== -1 && args[idx + 1]) limit = parseInt(args[idx + 1], 10);
+      }
+      const asJson = flags.includes("--json");
+      await discoverCmd({ limit, json: asJson });
+    }
+    break;
+
+  case "skill":
+  case "skills":
+    {
+      const subcommand = args[1];
+      const options = skillOptions(args.slice(2));
+      const skillSlug = args[2] && !args[2].startsWith("--") ? args[2] : undefined;
+
+      if (subcommand === "list") {
+        await skillListCommand({ ...options, query: skillSlug });
+        break;
+      }
+
+      if (subcommand === "install" || subcommand === "add") {
+        if (!skillSlug) argError("skill install", "<slug> [--agent <id>] [--scope project|user]");
+        await skillInstallCommand(skillSlug, options);
+        break;
+      }
+
+      if (subcommand === "update") {
+        if (!skillSlug) argError("skill update", "<slug> [--agent <id>] [--scope project|user]");
+        await skillUpdateCommand(skillSlug, options);
+        break;
+      }
+
+      if (subcommand === "remove") {
+        if (!skillSlug) argError("skill remove", "<slug> [--agent <id>] [--scope project|user]");
+        await skillRemoveCommand(skillSlug, options);
+        break;
+      }
+
+      argError("skill", "install|list|update|remove <slug>");
+    }
     break;
 
   case "logout":

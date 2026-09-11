@@ -14,7 +14,8 @@
   ],
   "scripts": {
     "dev": "node bin/cli.js",
-    "test": "node bin/cli.js --help"
+    "test": "node bin/cli.js --help",
+    "test:skills": "node --test test/skills.test.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.28.0",

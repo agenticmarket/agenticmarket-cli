@@ -25,6 +25,21 @@ agenticmarket auth <your-api-key>
 agenticmarket install username/server-name
 ```
 
+**Install an agent skill:**
+
+```bash
+agenticmarket skill list
+agenticmarket skill install nextjs-app-router --agent andromity --scope project
+agenticmarket skill install nextjs-app-router --all --scope user
+agenticmarket skill update nextjs-app-router --agent cursor
+agenticmarket skill remove nextjs-app-router --agent cursor
+```
+
+Skills are free, public `SKILL.md` instruction packages. Skill installation does
+not require an API key. The CLI writes the native file format for each selected
+agent, preserves existing files unless `--overwrite` is supplied, and records a
+best-effort install event for marketplace analytics.
+
 `create` scaffolds a production-ready Hono + TypeScript MCP server with security middleware, rate limiting, and deployment config in ~30 seconds.
 
 `install` writes MCP entries into VS Code, Cursor, Claude Desktop, and every other IDE you have — automatically.
@@ -61,10 +76,10 @@ AgenticMarket is where developers build and install MCP servers in one command a
 The Model Context Protocol (MCP) is the open standard that lets AI assistants — in VS Code, Cursor, Claude Desktop, and other tools — call external tools and data sources. AgenticMarket is the distribution and monetization layer built on top of it.
 
 **For developers using MCP servers:**  
-One command installs any server into every IDE you have. No hunting for JSON config paths. No manual authentication setup. Credits are prepaid and consumed per successful call — you only pay when a tool actually runs.
+One command installs any server into every IDE you have. No hunting for JSON config paths. No manual authentication setup. AgenticMarket distribution and calls are free; external services may still require their own credentials.
 
 **For developers publishing MCP servers:**  
-Submit your HTTP MCP server to AgenticMarket, get a proxy secret, and start earning 80% of every call routed through the platform. No changes required if you're already serving over HTTPS. The [Founding Creator program](https://agenticmarket.dev/creators) offers 90% revenue share for the first 100 approved creators.
+Submit your HTTP MCP server to AgenticMarket for free distribution, health checks, and install analytics. No listing fee, platform fee, or per-call charge.
 
 ---
 
